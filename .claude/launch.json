@@ -1,0 +1,19 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "Backend (dev)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 3000,
+      "cwd": "backend"
+    },
+    {
+      "name": "Backend (prod)",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["start"],
+      "port": 3000,
+      "cwd": "backend"
+    }
+  ]
+}
