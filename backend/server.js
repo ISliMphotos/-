@@ -279,10 +279,12 @@ app.post('/api/link/connect', async (req, res) => {
     const addId     = primary === char1 ? id2    : id1;
 
     console.log('merge: keep', primary.id, 'delete', secondary.id);
-    const { error: upErr } = await supabase.from('characters').update({ [addField]: addId }).eq('id', primary.id);
+    // ВАЖНО: сначала удаляем secondary, потом обновляем primary —
+    // иначе UNIQUE constraint на vk_id/telegram_id блокирует UPDATE
     const { error: delErr } = await supabase.from('characters').delete().eq('id', secondary.id);
-    if (upErr)  console.error('update error:', JSON.stringify(upErr));
     if (delErr) console.error('delete error:', JSON.stringify(delErr));
+    const { error: upErr } = await supabase.from('characters').update({ [addField]: addId }).eq('id', primary.id);
+    if (upErr)  console.error('update error:', JSON.stringify(upErr));
 
   } else if (char1) {
     // Только первый — добавляем ID второй платформы
