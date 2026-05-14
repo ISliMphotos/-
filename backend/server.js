@@ -14,11 +14,7 @@ const supabase = createClient(
 
 // ── MIDDLEWARE ────────────────────────────────────────────────────────────────
 
-app.use(cors({
-  origin: process.env.ALLOWED_ORIGIN || '*',
-  methods: ['GET', 'POST'],
-  allowedHeaders: ['Content-Type']
-}));
+app.use(cors({ origin: '*' }));
 
 app.use(express.json({ limit: '2mb' }));
 
