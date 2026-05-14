@@ -962,6 +962,10 @@ function rQNPC(){
 function rPh(i,t){return '<div class="card"><div style="text-align:center;padding:36px 16px"><div style="font-size:2.2rem;margin-bottom:10px">'+i+'</div><div style="color:#c9a84c;font-size:.95rem;letter-spacing:.1em">'+t+'</div><div style="color:#7a6a52;font-size:.78rem;margin-top:6px">В разработке</div></div></div>';}
 
 function render(){
+  // Всегда синхронизируем шапку с текущими данными S
+  document.getElementById("charNameDisp").textContent = S.name || "";
+  document.getElementById("lvlD").textContent = "УР. " + S.level;
+
   var map={char:rChar,professions:rProf,skills:rSkills,inventory:rInv,alchemy:rAlch,magic:function(){return rPh("🔮","СИСТЕМА МАГИИ");},qnpc:rQNPC};
   document.getElementById("cnt").innerHTML=(map[tab]||rChar)();
   var tbs=[["char","Персонаж"],["professions","Профессии"],["skills","Навыки"],["inventory","Инвентарь"],["alchemy","Алхимия"],["magic","Магия"],["qnpc","Квесты / НПС"]];
