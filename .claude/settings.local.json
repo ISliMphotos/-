@@ -1,0 +1,7 @@
+{
+  "permissions": {
+    "allow": [
+      "PowerShell(Copy-Item \"D:\\\\YandexDisk\\\\DnD\\\\���� ���ᮭ��� ����⮩ ���ਨ\\\\frontend\\\\index.html\" \"D:\\\\YandexDisk\\\\DnD\\\\���� ���ᮭ��� ����⮩ ���ਨ\\\\index.html\")"
+    ]
+  }
+}
