@@ -247,12 +247,16 @@ function openLinkModal() {
 async function generateLinkCode() {
   var display = document.getElementById('link_code_display');
   if (!display) return;
-  display.innerHTML = '<div style="color:#7a6a52;font-size:.75rem">Генерирую...</div>';
+  display.innerHTML = '<div style="color:#7a6a52;font-size:.75rem">Подключаюсь к серверу… (до 30 сек если сервер спал)</div>';
   try {
+    var controller = new AbortController();
+    var timer = setTimeout(function(){ controller.abort(); }, 35000);
     var res = await fetch(BACKEND_URL + '/api/link/generate', {
       method:'POST', headers:{'Content-Type':'application/json'},
-      body: JSON.stringify({ platform:'vk', user_id: vkUser.id })
+      body: JSON.stringify({ platform:'vk', user_id: vkUser.id }),
+      signal: controller.signal
     });
+    clearTimeout(timer);
     var data = await res.json();
     if (data.code) {
       display.innerHTML = '<div style="text-align:center;background:#0a0908;border:1px solid #c9a84c;border-radius:8px;padding:14px">'
