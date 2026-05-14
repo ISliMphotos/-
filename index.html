@@ -219,9 +219,18 @@ async function saveCharacter() {
       headers: {'Content-Type': 'application/json'},
       body: JSON.stringify({ telegram_id: telegramUser.id, character_data: S })
     });
-    if (res.ok) ntf('Сохранено!', '#27ae60');
-    else ntf('Ошибка сохранения', '#e05050');
-  } catch(e) { ntf('Нет связи с сервером', '#e05050'); }
+    if (res.ok) {
+      ntf('Сохранено!', '#27ae60');
+    } else {
+      const err = await res.json().catch(() => ({}));
+      const msg = err.details || err.error || ('HTTP ' + res.status);
+      ntf('Ошибка: ' + msg, '#e05050');
+      console.error('Save error:', err);
+    }
+  } catch(e) {
+    ntf('Нет связи с сервером', '#e05050');
+    console.error('Network error:', e);
+  }
 }
 
 setInterval(function(){ if(telegramUser) saveCharacter(); }, 30000);

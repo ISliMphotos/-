@@ -7,6 +7,11 @@ const { createClient } = require('@supabase/supabase-js');
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// Проверка переменных окружения при старте
+console.log('SUPABASE_URL:', process.env.SUPABASE_URL ? '✅ set' : '❌ MISSING');
+console.log('SUPABASE_KEY:', process.env.SUPABASE_KEY ? '✅ set' : '❌ MISSING');
+console.log('BOT_TOKEN:',    process.env.BOT_TOKEN    ? '✅ set' : '❌ MISSING');
+
 const supabase = createClient(
   process.env.SUPABASE_URL,
   process.env.SUPABASE_KEY
@@ -115,16 +120,21 @@ app.post('/api/character/save', async (req, res) => {
     .from('characters')
     .upsert(
       {
-        telegram_id: String(telegram_id),
-        character_data,
-        updated_at: new Date().toISOString()
+        telegram_id: Number(telegram_id),   // bigint — передаём числом
+        character_data
+        // updated_at обновляет триггер автоматически
       },
       { onConflict: 'telegram_id' }
     );
 
   if (error) {
-    console.error('Supabase save error:', error);
-    return res.status(500).json({ error: 'Database error' });
+    console.error('Supabase save error:', JSON.stringify(error));
+    return res.status(500).json({
+      error: 'Database error',
+      details: error.message,
+      hint: error.hint || null,
+      code: error.code || null
+    });
   }
 
   res.json({ success: true });
