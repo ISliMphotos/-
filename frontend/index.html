@@ -147,41 +147,27 @@ const AI={strength:"⚔",agility:"◎",vitality:"♥",intellect:"◆",trade:"◉
 const BT=["Броня","Максимум HP","Урон","Бонусный урон","Сила","Ловкость","Живучесть","Интеллект","Торговля","Талант","Мана"];
 
 let S={
-  name:"Крейн",level:19,exp:175,expNext:220,
-  attributes:{strength:8,agility:6,vitality:7,intellect:5,trade:4,talent:6},
-  currentHP:65,gold:120,
-  backpackOn:true,backpackSlots:10,
+  name:"",level:1,exp:0,expNext:30,
+  attributes:{strength:0,agility:0,vitality:0,intellect:0,trade:0,talent:0},
+  currentHP:0,gold:0,
+  backpackOn:false,backpackSlots:10,
   professionLimit:6,
-  titles:[{id:1,text:"Герой Восточного тракта"},{id:2,text:"Союзник гильдии алхимиков"}],
-  specialProps:[{id:1,text:"Фрагменты памяти: 3"},{id:2,text:"Сопротивление огню"}],
-  professions:[
-    {id:1,name:"Лекарь-алхимик",level:6,exp:46,expNext:70},
-    {id:2,name:"Воин",level:4,exp:20,expNext:50},
-    {id:3,name:"Мастер татуировщик",level:1,exp:0,expNext:30}
-  ],
-  skills:[
-    {id:1,name:"Живой танк",source:"Живучесть",type:"passive",description:"Пассивный. Увеличивает броню на 7.",property:"Броня +7",comment:"",bonusTarget:"Броня",bonusValue:7},
-    {id:2,name:"Базовое лечение",source:"Лекарь-алхимик",type:"passive",description:"Восстанавливает 10 HP союзнику",property:"",comment:"",bonusTarget:"",bonusValue:0}
-  ],
-  weapons:[{id:1,name:"Длинный меч",damage:"1d8+3",bonusDamage:"+2 огня",property:"",comment:"",qty:1,equipped:false},{id:2,name:"Кинжал",damage:"1d4+2",bonusDamage:"",property:"",comment:"",qty:1,equipped:false}],
-  armors:[{id:1,name:"Кожаная броня",armorValue:25,property:"",comment:"",qty:1,equipped:false}],
-  accessories:[{id:1,name:"Кольцо силы",property:"Сила +2",comment:"",qty:1,equipped:false,bonusTarget:"Сила",bonusValue:2}],
-  alchItems:[{id:1,name:"Эссенция огня",level:3,attribute:"Огонь",property:"",comment:"",qty:2}],
-  potions:[{id:1,name:"Зелье лечения",property:"Восстанавливает 15 HP",comment:"",qty:3}],
-  misc:[{id:1,name:"Верёвка",property:"",comment:"",qty:1}],
-  achievements:[{id:1,name:"Первая кровь",property:"Победил первого врага"}],
-  quests:[
-    {id:1,name:"Тайна древних руин",description:"Исследовать руины к востоку от города",done:false},
-    {id:2,name:"Найти травника",description:"Доставить послание травнику",done:true}
-  ],
-  npcs:[{id:1,name:"Торговец Эрик",notes:"Продаёт редкие зелья. Должен 50 золота."},{id:2,name:"Капитан Марра",notes:"Командир городской стражи."}],
+  titles:[],
+  specialProps:[],
+  professions:[],
+  skills:[],
+  weapons:[],
+  armors:[],
+  accessories:[],
+  alchItems:[],
+  potions:[],
+  misc:[],
+  achievements:[],
+  quests:[],
+  npcs:[],
   globalItemDB:[],
-  alchDB:[
-    {id:"a1",name:"Эссенция огня",level:3,attribute:"Огонь"},
-    {id:"a2",name:"Зелье ярости",level:2,attribute:"Ярость"},
-    {id:"a3",name:"Пыль тумана",level:1,attribute:"Туман"}
-  ],
-  alchInventory:[{id:"ai1",dbId:"a1",qty:2}],
+  alchDB:[],
+  alchInventory:[],
   procRecipes:[],
   alchRecipes:[],
   alchCircleRecipes:[],
