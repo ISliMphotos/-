@@ -90,15 +90,23 @@ select.inp option{background:#13110e}
 .alch-tbl td{padding:5px 8px;border-bottom:1px solid #1a1510;vertical-align:middle}
 .alch-tbl tr:last-child td{border-bottom:none}
 .srch-result{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#0a0908;border:1px solid #242018;border-radius:4px;margin-bottom:4px}
+.slot-card{background:#0a0908;border:1px solid #3a2e1e;border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer}
+.slot-card:hover{border-color:#c9a84c;background:#111009}
+.slot-card.active{border-color:#c9a84c;background:#1a1208}
+.slot-num{width:28px;height:28px;border-radius:50%;background:#1e1a12;border:1px solid #4a3a22;color:#c9a84c;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.slot-info{flex:1;min-width:0}
+.slot-name{font-size:.88rem;color:#e8dcc8;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.slot-lvl{font-size:.65rem;color:#7a6a52;margin-top:2px}
 </style>
 </head>
 <body>
 <div class="app">
 <div class="hdr">
   <div class="hdr-top">
-    <span class="cname" id="charNameDisp"></span>
+    <span class="cname" id="charNameDisp" onclick="openCharSelect()" style="cursor:pointer" title="Сменить персонажа"></span>
     <span class="lbadge" id="lvlD">УР. 1</span>
-    <button class="btn" onclick="openLinkModal()" style="margin-left:auto;background:#1a1f3a;border-color:#4a6fa5;color:#7ec8e3" title="v6">🔗 VK</button>
+    <span class="lbadge" id="slotD" onclick="openCharSelect()" style="cursor:pointer;color:#7a6a52;border-color:#3a2e1e" title="Персонажи">1/1</span>
+    <button class="btn" onclick="openLinkModal()" style="margin-left:auto;background:#1a1f3a;border-color:#4a6fa5;color:#7ec8e3" title="v7">🔗 VK</button>
     <button class="btn" onclick="saveCharacter()" style="background:#27ae60;border-color:#27ae60;color:#fff">💾 Сохранить</button>
   </div>
   <div class="tabs" id="tabs"></div>
@@ -179,6 +187,100 @@ let S={
   alchSuccessChance:100
 };
 
+// ── МУЛЬТИПЕРСОНАЖИ ───────────────────────────────────────────────────────────
+
+var slots = [];
+var activeSlot = 0;
+var MAX_SLOTS = 5;
+
+function defaultChar() {
+  return {
+    name:"",level:1,exp:0,expNext:30,
+    attributes:{strength:0,agility:0,vitality:0,intellect:0,trade:0,talent:0},
+    currentHP:0,gold:0,backpackOn:false,backpackSlots:10,professionLimit:6,
+    titles:[],specialProps:[],professions:[],skills:[],weapons:[],armors:[],
+    accessories:[],alchItems:[],potions:[],misc:[],achievements:[],quests:[],
+    npcs:[],globalItemDB:[],alchDB:[],alchInventory:[],procRecipes:[],
+    alchRecipes:[],alchCircleRecipes:[],alchHistory:[],alchSuccessChance:100
+  };
+}
+
+function saveCurrentSlot() {
+  if (slots.length === 0) slots.push({});
+  slots[activeSlot] = JSON.parse(JSON.stringify(S));
+}
+
+function applySlot(idx) {
+  var src = slots[idx] || defaultChar();
+  var merged = Object.assign({}, defaultChar(), JSON.parse(JSON.stringify(src)));
+  Object.keys(S).forEach(function(k){ delete S[k]; });
+  Object.assign(S, merged);
+}
+
+function switchSlot(idx) {
+  saveCurrentSlot();
+  activeSlot = idx;
+  applySlot(idx);
+  closeMod();
+  render();
+  ntf('Персонаж ' + (idx + 1) + ': ' + (S.name || 'Без имени'), '#c9a84c');
+}
+
+function addNewChar() {
+  if (slots.length >= MAX_SLOTS) { ntf('Максимум ' + MAX_SLOTS + ' персонажей', '#e05050'); return; }
+  saveCurrentSlot();
+  slots.push(defaultChar());
+  activeSlot = slots.length - 1;
+  applySlot(activeSlot);
+  closeMod();
+  render();
+  ntf('Создан персонаж ' + slots.length, '#27ae60');
+}
+
+function confirmDeleteChar(idx) {
+  if (slots.length <= 1) { ntf('Нельзя удалить единственного персонажа', '#e05050'); return; }
+  var name = (slots[idx] && slots[idx].name) || 'Без имени';
+  openMod('<div class="mtitle">Удалить персонажа?</div>'
+    + '<div style="font-size:.8rem;color:#e8dcc8;margin-bottom:16px">«' + name + '» будет удалён без возможности восстановления.</div>'
+    + '<div class="row"><button class="bdng" style="flex:1;padding:8px" onclick="deleteChar(' + idx + ')">Удалить</button>'
+    + '<button class="btn" style="flex:1;padding:8px;text-align:center" onclick="openCharSelect()">Отмена</button></div>');
+}
+
+function deleteChar(idx) {
+  slots.splice(idx, 1);
+  if (activeSlot >= slots.length) activeSlot = slots.length - 1;
+  applySlot(activeSlot);
+  closeMod();
+  render();
+  ntf('Персонаж удалён', '#e05050');
+}
+
+function openCharSelect() {
+  var html = '<div class="mtitle">👤 Персонажи</div>';
+  slots.forEach(function(sl, i) {
+    var nm = sl.name || 'Без имени';
+    var lvl = sl.level || 1;
+    var isActive = (i === activeSlot);
+    html += '<div class="slot-card' + (isActive ? ' active' : '') + '" onclick="switchSlot(' + i + ')">'
+      + '<div class="slot-num">' + (i + 1) + '</div>'
+      + '<div class="slot-info">'
+      + '<div class="slot-name">' + nm + (isActive ? ' ✦' : '') + '</div>'
+      + '<div class="slot-lvl">УР. ' + lvl + (isActive ? ' · активный' : '') + '</div>'
+      + '</div>'
+      + (slots.length > 1
+          ? '<button class="bdng" onclick="event.stopPropagation();confirmDeleteChar(' + i + ')" style="font-size:.65rem;padding:3px 7px">✕</button>'
+          : '')
+      + '</div>';
+  });
+  if (slots.length < MAX_SLOTS) {
+    html += '<button class="btn" onclick="addNewChar()" style="width:100%;text-align:center;margin-top:4px">+ Новый персонаж (' + slots.length + '/' + MAX_SLOTS + ')</button>';
+  } else {
+    html += '<div style="font-size:.7rem;color:#7a6a52;text-align:center;margin-top:6px">Достигнут максимум (' + MAX_SLOTS + ' персонажей)</div>';
+  }
+  html += '<button class="btn" style="width:100%;text-align:center;margin-top:10px" onclick="closeMod()">Закрыть</button>';
+  openMod(html);
+}
+
 // ── TELEGRAM INTEGRATION ──────────────────────────────────────────────────────
 
 async function initApp() {
@@ -191,7 +293,11 @@ async function initApp() {
     Telegram.WebApp.expand();
     telegramUser = Telegram.WebApp.initDataUnsafe?.user;
   }
-  if (telegramUser) await loadCharacter();
+  if (telegramUser) {
+    await loadCharacter();
+  } else {
+    slots = [defaultChar()]; activeSlot = 0;
+  }
   render();
 }
 
@@ -200,18 +306,37 @@ async function loadCharacter() {
     const res = await fetch(BACKEND_URL + '/api/character/' + telegramUser.id);
     if (res.ok) {
       const data = await res.json();
-      if (data.character_data) Object.assign(S, data.character_data);
+      const cd = data.character_data;
+      if (cd) {
+        if (cd.slots && Array.isArray(cd.slots)) {
+          // Новый формат { slots, activeSlot }
+          slots = cd.slots.map(function(sl){ return Object.assign({}, defaultChar(), sl); });
+          activeSlot = cd.activeSlot || 0;
+          if (activeSlot >= slots.length) activeSlot = 0;
+        } else {
+          // Старый формат — единственный персонаж, мигрируем
+          slots = [Object.assign({}, defaultChar(), cd)];
+          activeSlot = 0;
+        }
+        applySlot(activeSlot);
+      } else {
+        slots = [defaultChar()];
+        activeSlot = 0;
+        applySlot(0);
+      }
     }
   } catch(e) { console.log('Новый персонаж'); }
+  if (slots.length === 0) { slots = [defaultChar()]; activeSlot = 0; }
 }
 
 async function saveCharacter() {
   if (!telegramUser) { ntf('Открой через Telegram!', '#e05050'); return; }
+  saveCurrentSlot();
   try {
     const res = await fetch(BACKEND_URL + '/api/character/save', {
       method: 'POST',
       headers: {'Content-Type': 'application/json'},
-      body: JSON.stringify({ telegram_id: telegramUser.id, character_data: S })
+      body: JSON.stringify({ telegram_id: telegramUser.id, character_data: { slots: slots, activeSlot: activeSlot } })
     });
     if (res.ok) {
       ntf('Сохранено!', '#27ae60');
@@ -1025,8 +1150,13 @@ function rPh(i,t){return '<div class="card"><div style="text-align:center;paddin
 
 function render(){
   // Всегда синхронизируем шапку с текущими данными S
-  document.getElementById("charNameDisp").textContent = S.name || "";
+  document.getElementById("charNameDisp").textContent = S.name || "Персонаж";
   document.getElementById("lvlD").textContent = "УР. " + S.level;
+  var slotEl = document.getElementById("slotD");
+  if (slotEl) {
+    slotEl.textContent = (activeSlot + 1) + "/" + (slots.length || 1);
+    slotEl.style.display = (slots.length > 1) ? "" : "none";
+  }
 
   var map={char:rChar,professions:rProf,skills:rSkills,inventory:rInv,alchemy:rAlch,magic:function(){return rPh("🔮","СИСТЕМА МАГИИ");},qnpc:rQNPC};
   document.getElementById("cnt").innerHTML=(map[tab]||rChar)();
