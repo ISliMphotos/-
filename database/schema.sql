@@ -28,6 +28,11 @@ before update on characters
 for each row execute function touch_updated_at();
 
 -- ─────────────────────────────────────────────────────────────────
+-- VK поддержка: добавить колонку vk_id если её ещё нет
+-- (выполните отдельно если таблица уже создана)
+-- alter table characters add column if not exists vk_id bigint unique;
+-- create index if not exists characters_vk_id_idx on characters (vk_id);
+-- ─────────────────────────────────────────────────────────────────
 -- ВАЖНО: отключаем RLS, чтобы anon-ключ мог читать и писать.
 -- Бэкенд сам отвечает за безопасность — данные валидируются там.
 -- ─────────────────────────────────────────────────────────────────

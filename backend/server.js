@@ -140,6 +140,68 @@ app.post('/api/character/save', async (req, res) => {
   res.json({ success: true });
 });
 
+// ── VK ROUTES ────────────────────────────────────────────────────────────────
+
+/**
+ * GET /api/character/vk/:vk_id
+ * Ответ: { character_data: object } или 404
+ */
+app.get('/api/character/vk/:vk_id', async (req, res) => {
+  const { vk_id } = req.params;
+
+  const { data, error } = await supabase
+    .from('characters')
+    .select('character_data')
+    .eq('vk_id', Number(vk_id))
+    .single();
+
+  if (error && error.code !== 'PGRST116') {
+    console.error('Supabase vk load error:', JSON.stringify(error));
+    return res.status(500).json({ error: 'Database error', details: error.message });
+  }
+
+  if (!data) {
+    return res.status(404).json({ error: 'Character not found' });
+  }
+
+  res.json({ character_data: data.character_data });
+});
+
+/**
+ * POST /api/character/vk/save
+ * Тело: { vk_id: number, character_data: object }
+ * Ответ: { success: true }
+ */
+app.post('/api/character/vk/save', async (req, res) => {
+  const { vk_id, character_data } = req.body;
+
+  if (!vk_id || !character_data) {
+    return res.status(400).json({ error: 'vk_id and character_data are required' });
+  }
+
+  const { error } = await supabase
+    .from('characters')
+    .upsert(
+      {
+        vk_id: Number(vk_id),
+        character_data
+      },
+      { onConflict: 'vk_id' }
+    );
+
+  if (error) {
+    console.error('Supabase vk save error:', JSON.stringify(error));
+    return res.status(500).json({
+      error: 'Database error',
+      details: error.message,
+      hint: error.hint || null,
+      code: error.code || null
+    });
+  }
+
+  res.json({ success: true });
+});
+
 // ── START ─────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
