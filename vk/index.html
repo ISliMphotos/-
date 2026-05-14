@@ -182,6 +182,9 @@ let S={
 // ── VK INTEGRATION ───────────────────────────────────────────────────────────
 
 async function initApp() {
+  // Будим сервер в фоне сразу при открытии
+  fetch(BACKEND_URL + '/health').catch(function(){});
+
   try {
     vkBridge.send('VKWebAppInit');
     const info = await vkBridge.send('VKWebAppGetUserInfo');

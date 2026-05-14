@@ -182,6 +182,10 @@ let S={
 // ── TELEGRAM INTEGRATION ──────────────────────────────────────────────────────
 
 async function initApp() {
+  // Будим сервер в фоне сразу при открытии — пока пользователь видит лист,
+  // Render успевает проснуться (~20 сек) до первого нажатия кнопки
+  fetch(BACKEND_URL + '/health').catch(function(){});
+
   if (window.Telegram && window.Telegram.WebApp) {
     Telegram.WebApp.ready();
     Telegram.WebApp.expand();
