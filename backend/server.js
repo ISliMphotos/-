@@ -258,22 +258,46 @@ app.post('/api/link/connect', async (req, res) => {
   const id1 = entry.user_id;
   const id2 = Number(user_id);
 
-  const { data: char1 } = await supabase.from('characters').select('*').eq(field1, id1).single();
-  const { data: char2 } = await supabase.from('characters').select('*').eq(field2, id2).single();
+  const { data: char1, error: e1 } = await supabase.from('characters').select('*').eq(field1, id1).single();
+  const { data: char2, error: e2 } = await supabase.from('characters').select('*').eq(field2, id2).single();
+
+  console.log('link/connect char1:', char1?.id, 'char2:', char2?.id);
+
+  // Определяем, чьи данные "богаче" — у кого есть имя или уровень > 1
+  function hasData(ch) {
+    if (!ch) return false;
+    const d = ch.character_data || {};
+    return !!(d.name || (d.level && d.level > 1));
+  }
 
   if (char1 && char2 && char1.id !== char2.id) {
-    // Оба существуют — оставляем данные того, кто создал код, добавляем второй ID
-    await supabase.from('characters').update({ [field2]: id2 }).eq('id', char1.id);
-    await supabase.from('characters').delete().eq('id', char2.id);
+    // Оба существуют — сохраняем того, у кого есть данные персонажа.
+    // Если оба заполнены или оба пусты — приоритет у создателя кода (char1).
+    const primary   = (!hasData(char1) && hasData(char2)) ? char2 : char1;
+    const secondary = primary === char1 ? char2 : char1;
+    const addField  = primary === char1 ? field2 : field1;
+    const addId     = primary === char1 ? id2    : id1;
+
+    console.log('merge: keep', primary.id, 'delete', secondary.id);
+    const { error: upErr } = await supabase.from('characters').update({ [addField]: addId }).eq('id', primary.id);
+    const { error: delErr } = await supabase.from('characters').delete().eq('id', secondary.id);
+    if (upErr)  console.error('update error:', JSON.stringify(upErr));
+    if (delErr) console.error('delete error:', JSON.stringify(delErr));
+
   } else if (char1) {
-    // Только первый — добавляем второй platform ID
-    await supabase.from('characters').update({ [field2]: id2 }).eq('id', char1.id);
+    // Только первый — добавляем ID второй платформы
+    const { error: upErr } = await supabase.from('characters').update({ [field2]: id2 }).eq('id', char1.id);
+    if (upErr) console.error('update error:', JSON.stringify(upErr));
+
   } else if (char2) {
-    // Только второй — добавляем первый platform ID
-    await supabase.from('characters').update({ [field1]: id1 }).eq('id', char2.id);
+    // Только второй — добавляем ID первой платформы
+    const { error: upErr } = await supabase.from('characters').update({ [field1]: id1 }).eq('id', char2.id);
+    if (upErr) console.error('update error:', JSON.stringify(upErr));
+
   } else {
     // Никого нет — создаём запись с обоими ID
-    await supabase.from('characters').insert({ [field1]: id1, [field2]: id2, character_data: {} });
+    const { error: insErr } = await supabase.from('characters').insert({ [field1]: id1, [field2]: id2, character_data: {} });
+    if (insErr) console.error('insert error:', JSON.stringify(insErr));
   }
 
   res.json({ success: true });
