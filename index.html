@@ -98,8 +98,8 @@ select.inp option{background:#13110e}
   <div class="hdr-top">
     <span class="cname" id="charNameDisp"></span>
     <span class="lbadge" id="lvlD">УР. 1</span>
-    <span style="font-size:.55rem;color:#3a2e1e;margin-left:4px">v5</span>
-    <button class="btn" onclick="saveCharacter()" style="margin-left:auto;background:#27ae60;border-color:#27ae60;color:#fff">💾 Сохранить</button>
+    <button class="btn" onclick="openLinkModal()" style="margin-left:auto;background:#1a1f3a;border-color:#4a6fa5;color:#7ec8e3">🔗 VK</button>
+    <button class="btn" onclick="saveCharacter()" style="background:#27ae60;border-color:#27ae60;color:#fff">💾 Сохранить</button>
   </div>
   <div class="tabs" id="tabs"></div>
 </div>
@@ -224,6 +224,60 @@ async function saveCharacter() {
 }
 
 setInterval(function(){ if(telegramUser) saveCharacter(); }, 30000);
+
+// ── СИНХРОНИЗАЦИЯ TELEGRAM ↔ VK ──────────────────────────────────────────────
+
+function openLinkModal() {
+  if (!telegramUser) { ntf('Открой через Telegram!', '#e05050'); return; }
+  openMod('<div class="mtitle">🔗 Связать с VK</div>'
+    +'<div style="font-size:.75rem;color:#7a6a52;margin-bottom:14px">Привяжи Telegram и VK — персонаж станет общим на обеих платформах.</div>'
+    +'<div class="stitle" style="margin-bottom:8px">Шаг 1 — создай код здесь<div class="sline"></div></div>'
+    +'<div style="font-size:.72rem;color:#7a6a52;margin-bottom:8px">Нажми кнопку, получи код и введи его в VK-приложении. Код действует 10 минут.</div>'
+    +'<button class="bpri" onclick="generateLinkCode()" style="width:100%">Создать код</button>'
+    +'<div id="link_code_display" style="margin-top:8px"></div>'
+    +'<div class="stitle" style="margin-top:16px;margin-bottom:8px">— или — введи код из VK<div class="sline"></div></div>'
+    +'<div class="row"><input class="inp" id="link_code_input" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:.15em;font-size:1rem;text-align:center;flex:1">'
+    +'<button class="bpri" onclick="connectWithCode()">Связать</button></div>'
+    +'<div id="link_connect_result" style="margin-top:8px"></div>'
+    +'<button class="btn" style="width:100%;margin-top:16px;text-align:center" onclick="closeMod()">Закрыть</button>');
+}
+
+async function generateLinkCode() {
+  var display = document.getElementById('link_code_display');
+  if (!display) return;
+  display.innerHTML = '<div style="color:#7a6a52;font-size:.75rem">Генерирую...</div>';
+  try {
+    var res = await fetch(BACKEND_URL + '/api/link/generate', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ platform:'telegram', user_id: telegramUser.id })
+    });
+    var data = await res.json();
+    if (data.code) {
+      display.innerHTML = '<div style="text-align:center;background:#0a0908;border:1px solid #c9a84c;border-radius:8px;padding:14px">'
+        +'<div style="font-size:2rem;font-weight:bold;color:#c9a84c;letter-spacing:.3em">'+data.code+'</div>'
+        +'<div style="font-size:.68rem;color:#7a6a52;margin-top:4px">Введи этот код в VK-приложении</div>'
+        +'<div style="font-size:.62rem;color:#5a4a35;margin-top:2px">Действует 10 минут</div></div>';
+    } else { display.innerHTML = '<div style="color:#e05050;font-size:.75rem">'+(data.error||'Ошибка')+'</div>'; }
+  } catch(e) { display.innerHTML = '<div style="color:#e05050;font-size:.75rem">Нет связи с сервером</div>'; }
+}
+
+async function connectWithCode() {
+  var code = (document.getElementById('link_code_input')?.value||'').trim().toUpperCase();
+  var result = document.getElementById('link_connect_result');
+  if (!code) { if(result) result.innerHTML='<div style="color:#e05050;font-size:.75rem">Введи код</div>'; return; }
+  if (result) result.innerHTML = '<div style="color:#7a6a52;font-size:.75rem">Связываю...</div>';
+  try {
+    var res = await fetch(BACKEND_URL + '/api/link/connect', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, platform:'telegram', user_id: telegramUser.id })
+    });
+    var data = await res.json();
+    if (data.success) {
+      if(result) result.innerHTML='<div style="color:#27ae60;font-size:.82rem;text-align:center">✅ Аккаунты связаны! Перезапусти приложение.</div>';
+      ntf('Аккаунты связаны!','#27ae60');
+    } else { if(result) result.innerHTML='<div style="color:#e05050;font-size:.75rem">'+(data.error||'Ошибка')+'</div>'; }
+  } catch(e) { if(result) result.innerHTML='<div style="color:#e05050;font-size:.75rem">Нет связи с сервером</div>'; }
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 

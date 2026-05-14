@@ -202,6 +202,83 @@ app.post('/api/character/vk/save', async (req, res) => {
   res.json({ success: true });
 });
 
+// ── LINK CODES (in-memory, TTL 10 мин) ───────────────────────────────────────
+
+const linkCodes = new Map(); // code → { platform, user_id, expires }
+
+function makeLinkCode() {
+  return Math.random().toString(36).substr(2, 6).toUpperCase();
+}
+
+/**
+ * POST /api/link/generate
+ * Тело: { platform: 'telegram'|'vk', user_id: number }
+ * Ответ: { code, expires_in: 600 }
+ */
+app.post('/api/link/generate', (req, res) => {
+  const { platform, user_id } = req.body;
+  if (!platform || !user_id) {
+    return res.status(400).json({ error: 'platform and user_id required' });
+  }
+
+  // Чистим протухшие коды
+  for (const [k, v] of linkCodes) if (Date.now() > v.expires) linkCodes.delete(k);
+
+  const code = makeLinkCode();
+  linkCodes.set(code, { platform, user_id: Number(user_id), expires: Date.now() + 600_000 });
+
+  res.json({ code, expires_in: 600 });
+});
+
+/**
+ * POST /api/link/connect
+ * Тело: { code, platform: 'telegram'|'vk', user_id: number }
+ * Ответ: { success: true }
+ */
+app.post('/api/link/connect', async (req, res) => {
+  const { code, platform, user_id } = req.body;
+  if (!code || !platform || !user_id) {
+    return res.status(400).json({ error: 'code, platform and user_id required' });
+  }
+
+  const entry = linkCodes.get(code.toUpperCase());
+  if (!entry) return res.status(404).json({ error: 'Код не найден' });
+  if (Date.now() > entry.expires) {
+    linkCodes.delete(code.toUpperCase());
+    return res.status(410).json({ error: 'Код истёк (10 минут)' });
+  }
+  if (entry.platform === platform) {
+    return res.status(400).json({ error: 'Нельзя связать два аккаунта одной платформы' });
+  }
+
+  linkCodes.delete(code.toUpperCase());
+
+  const field1 = entry.platform === 'telegram' ? 'telegram_id' : 'vk_id';
+  const field2 = platform === 'telegram' ? 'telegram_id' : 'vk_id';
+  const id1 = entry.user_id;
+  const id2 = Number(user_id);
+
+  const { data: char1 } = await supabase.from('characters').select('*').eq(field1, id1).single();
+  const { data: char2 } = await supabase.from('characters').select('*').eq(field2, id2).single();
+
+  if (char1 && char2 && char1.id !== char2.id) {
+    // Оба существуют — оставляем данные того, кто создал код, добавляем второй ID
+    await supabase.from('characters').update({ [field2]: id2 }).eq('id', char1.id);
+    await supabase.from('characters').delete().eq('id', char2.id);
+  } else if (char1) {
+    // Только первый — добавляем второй platform ID
+    await supabase.from('characters').update({ [field2]: id2 }).eq('id', char1.id);
+  } else if (char2) {
+    // Только второй — добавляем первый platform ID
+    await supabase.from('characters').update({ [field1]: id1 }).eq('id', char2.id);
+  } else {
+    // Никого нет — создаём запись с обоими ID
+    await supabase.from('characters').insert({ [field1]: id1, [field2]: id2, character_data: {} });
+  }
+
+  res.json({ success: true });
+});
+
 // ── START ─────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
