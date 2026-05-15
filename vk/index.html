@@ -116,7 +116,7 @@ select.inp option{background:#13110e}
 <div id="notifEl" class="notif" style="display:none"></div>
 <div id="movl" class="ov" style="display:none" onclick="closeMod()"><div class="modal" onclick="event.stopPropagation()" id="mbox"></div></div>
 <div id="hpcalc" class="ov" style="display:none" onclick="closeHpCalc()">
-  <div class="modal" style="width:280px" onclick="event.stopPropagation()">
+  <div class="modal" style="width:300px" onclick="event.stopPropagation()">
     <div class="mtitle">Здоровье</div>
     <div class="cd"><div class="cn" id="hpcnum">0</div><div style="font-size:.68rem;color:#7a6a52">Введите число</div></div>
     <div class="cg">
@@ -130,6 +130,7 @@ select.inp option{background:#13110e}
       <button class="cb cdmg" style="width:100%;height:48px;font-size:.7rem;border-radius:6px;line-height:1.3;border-color:#ff6b6b" onclick="hcApply('p')">Урон<br><span style="font-size:.58rem;opacity:.75">сквозной</span></button>
       <button class="cb chl" style="width:100%;height:48px;font-size:.7rem;border-radius:6px" onclick="hcApply('h')">Лечение</button>
     </div>
+    <div id="hpLogWrap" style="margin-top:10px;max-height:160px;overflow-y:auto;border-top:1px solid #1a1510;padding-top:8px"></div>
     <button class="btn" style="width:100%;margin-top:7px;text-align:center" onclick="closeHpCalc()">Закрыть</button>
   </div>
 </div>
@@ -689,7 +690,6 @@ let alchReagentCount=2,alchCircleReagentCount=2;
 let alchBaseSortCol="name",alchBaseSortDir=1,alchBaseSearch="";
 let alchBaseGroupBy="",alchInvGroupBy="",alchInvSortBy="name",alchInvSortDir=1;
 let hcv="",gcv="";
-let hpLogOpen=false;
 let notesOpen=false;
 
 // ── DERIVED ──
@@ -709,7 +709,29 @@ const eqBtn=(eq,fn)=>{const c=eq?"#27ae60":"#c9a84c",bg=eq?"#0d1f0d":"#1e1a12",b
 const setTab=t=>{tab=t;render();};
 
 // ── CALCULATORS ──
-const openHpCalc=()=>{hcv="";document.getElementById("hpcnum").textContent="0";document.getElementById("hpcalc").style.display="flex";};
+function renderHpLog(){
+  const wrap=document.getElementById("hpLogWrap");
+  if(!wrap)return;
+  const log=S.hpLog||[];
+  if(log.length===0){wrap.innerHTML='';return;}
+  const rows=log.slice(0,30).map(e=>{
+    const td=new Date(e.t);
+    const ts=[td.getHours(),td.getMinutes(),td.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");
+    const col=e.delta>=0?"#27ae60":"#e05050";
+    const sign=e.delta>0?"+":"";
+    return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #1a1510;font-size:.68rem">
+      <span style="color:#5a4a35;font-family:monospace;flex-shrink:0">${ts}</span>
+      <span style="color:${col};font-weight:bold;min-width:28px;flex-shrink:0">${sign}${e.delta}</span>
+      <span style="color:#7a6a52;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.desc}</span>
+      <span style="color:#e8dcc8;flex-shrink:0">→${e.hp}</span>
+    </div>`;
+  }).join("");
+  wrap.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <span style="font-size:.6rem;letter-spacing:.12em;color:#7a6a52;text-transform:uppercase">Лог изменений</span>
+    <button class="bdng" style="font-size:.6rem;padding:2px 7px" onclick="S.hpLog=[];renderHpLog();render()">Очистить</button>
+  </div>${rows}`;
+}
+const openHpCalc=()=>{hcv="";document.getElementById("hpcnum").textContent="0";document.getElementById("hpcalc").style.display="flex";renderHpLog();};
 const closeHpCalc=()=>document.getElementById("hpcalc").style.display="none";
 function hcp(d){if(hcv.length>=6)return;hcv+=d;document.getElementById("hpcnum").textContent=parseInt(hcv)||"0";}
 function hccl(){hcv="";document.getElementById("hpcnum").textContent="0";}
@@ -737,6 +759,7 @@ function hcApply(t){
   S.hpLog.unshift({t:Date.now(),delta,desc,hp:S.currentHP});
   if(S.hpLog.length>50)S.hpLog=S.hpLog.slice(0,50);
   hcv="";document.getElementById("hpcnum").textContent="0";
+  renderHpLog();
   render();
 }
 const openGoldCalc=()=>{gcv="";document.getElementById("gcnum").textContent="0";document.getElementById("goldcalc").style.display="flex";};
@@ -888,26 +911,6 @@ function rChar(){
     <button class="bdng" onclick="S.achievements=S.achievements.filter(x=>x.id!==${a.id});render()">✕</button>
   </div>`).join("")}
 </div>
-${(S.hpLog&&S.hpLog.length>0)?`<div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${hpLogOpen?8:0}px">
-    <div class="stitle" style="margin-bottom:0">Лог здоровья<div class="sline"></div></div>
-    <div class="row">
-      <button class="btn" style="padding:2px 8px;font-size:.68rem" onclick="hpLogOpen=!hpLogOpen;render()">${hpLogOpen?"Скрыть":"Показать"}</button>
-      <button class="bdng" onclick="S.hpLog=[];render()">Очистить</button>
-    </div>
-  </div>
-  ${hpLogOpen?S.hpLog.slice(0,20).map(e=>{
-    const td=new Date(e.t);
-    const ts=[td.getHours(),td.getMinutes(),td.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");
-    const col=e.delta>=0?"#27ae60":"#e05050";
-    const sign=e.delta>0?"+":"";
-    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1a1510;font-size:.72rem">
-      <span style="color:#5a4a35;font-family:monospace;flex-shrink:0">${ts}</span>
-      <span style="color:${col};font-weight:bold;min-width:30px;flex-shrink:0">${sign}${e.delta}</span>
-      <span style="color:#7a6a52;flex:1">${e.desc}</span>
-      <span style="color:#e8dcc8;flex-shrink:0">HP: ${e.hp}</span>
-    </div>`;
-  }).join(""):""}
 </div>`:""}
 <div class="card">
   <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${notesOpen?10:0}px;cursor:pointer" onclick="notesOpen=!notesOpen;render()">
