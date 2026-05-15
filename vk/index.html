@@ -584,7 +584,8 @@ function hcApply(t){
   if(!S.hpLog)S.hpLog=[];
   S.hpLog.unshift({t:Date.now(),delta,desc,hp:S.currentHP});
   if(S.hpLog.length>50)S.hpLog=S.hpLog.slice(0,50);
-  closeHpCalc();render();
+  hcv="";document.getElementById("hpcnum").textContent="0";
+  render();
 }
 const openGoldCalc=()=>{gcv="";document.getElementById("gcnum").textContent="0";document.getElementById("goldcalc").style.display="flex";};
 const closeGoldCalc=()=>document.getElementById("goldcalc").style.display="none";
