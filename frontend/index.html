@@ -602,6 +602,12 @@ async function loadCharacter() {
   if (slots.length === 0) { slots = [defaultChar()]; activeSlot = 0; }
 }
 
+let _saveTimer = null;
+function scheduleSave() {
+  clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(function(){ if(telegramUser) saveCharacter(); }, 2000);
+}
+
 async function saveCharacter() {
   if (!telegramUser) { ntf('Открой через Telegram!', '#e05050'); return; }
   saveCurrentSlot();
@@ -612,7 +618,7 @@ async function saveCharacter() {
       body: JSON.stringify({ telegram_id: telegramUser.id, character_data: { slots: slots, activeSlot: activeSlot } })
     });
     if (res.ok) {
-      ntf('Сохранено!', '#27ae60');
+      ntf('Сохранено ✓', '#27ae60');
     } else {
       const err = await res.json().catch(() => ({}));
       const msg = err.details || err.error || ('HTTP ' + res.status);
@@ -624,8 +630,6 @@ async function saveCharacter() {
     console.error('Network error:', e);
   }
 }
-
-setInterval(function(){ if(telegramUser) saveCharacter(); }, 30000);
 
 // ── СИНХРОНИЗАЦИЯ TELEGRAM ↔ VK ──────────────────────────────────────────────
 
@@ -1471,6 +1475,7 @@ function rQNPC(){
 function rPh(i,t){return '<div class="card"><div style="text-align:center;padding:36px 16px"><div style="font-size:2.2rem;margin-bottom:10px">'+i+'</div><div style="color:#c9a84c;font-size:.95rem;letter-spacing:.1em">'+t+'</div><div style="color:#7a6a52;font-size:.78rem;margin-top:6px">В разработке</div></div></div>';}
 
 function render(){
+  scheduleSave();
   // Всегда синхронизируем шапку с текущими данными S
   document.getElementById("charNameDisp").textContent = S.name || "Персонаж";
   document.getElementById("lvlD").textContent = "УР. " + S.level;
