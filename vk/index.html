@@ -184,7 +184,9 @@ let S={
   alchRecipes:[],
   alchCircleRecipes:[],
   alchHistory:[],
-  alchSuccessChance:100
+  alchSuccessChance:100,
+  notes:"",
+  hpLog:[]
 };
 
 // ── МУЛЬТИПЕРСОНАЖИ ───────────────────────────────────────────────────────────
@@ -201,7 +203,8 @@ function defaultChar() {
     titles:[],specialProps:[],professions:[],skills:[],weapons:[],armors:[],
     accessories:[],alchItems:[],potions:[],misc:[],achievements:[],quests:[],
     npcs:[],globalItemDB:[],alchDB:[],alchInventory:[],procRecipes:[],
-    alchRecipes:[],alchCircleRecipes:[],alchHistory:[],alchSuccessChance:100
+    alchRecipes:[],alchCircleRecipes:[],alchHistory:[],alchSuccessChance:100,
+    notes:"",hpLog:[]
   };
 }
 
@@ -291,8 +294,109 @@ function openCharSelect() {
   } else {
     html += '<div style="font-size:.7rem;color:#7a6a52;text-align:center;margin-top:6px">Достигнут максимум (' + MAX_SLOTS + ' персонажей)</div>';
   }
-  html += '<button class="btn" style="width:100%;text-align:center;margin-top:10px" onclick="closeMod()">Закрыть</button>';
+  html += '<button class="btn" onclick="openRoomModal()" style="width:100%;text-align:center;margin-top:8px;border-color:#7a5c1e;color:#c9a84c">🏰 Комната мастера</button>';
+  html += '<button class="btn" style="width:100%;text-align:center;margin-top:6px" onclick="closeMod()">Закрыть</button>';
   openMod(html);
+}
+
+// ── КОМНАТА МАСТЕРА ───────────────────────────────────────────────────────────
+
+function openRoomModal() {
+  if (!vkUser) { ntf('Открой через VK!', '#e05050'); return; }
+  var myCode = localStorage.getItem('myRoomCode');
+  var joinedCode = localStorage.getItem('joinedRoomCode');
+  var html = '<div class="mtitle">🏰 Комната мастера</div>';
+
+  html += '<div class="stitle" style="margin-bottom:8px">Я мастер<div class="sline"></div></div>';
+  if (myCode) {
+    html += '<div style="text-align:center;background:#0a0908;border:1px solid #c9a84c;border-radius:8px;padding:12px;margin-bottom:8px">'
+      + '<div style="font-size:1.8rem;font-weight:bold;color:#c9a84c;letter-spacing:.3em">'+myCode+'</div>'
+      + '<div style="font-size:.65rem;color:#7a6a52;margin-top:4px">Код для игроков</div></div>';
+    html += '<button class="btn" onclick="copyMasterLink(\''+myCode+'\')" style="width:100%;text-align:center;margin-bottom:6px">📎 Ссылка на страницу мастера</button>';
+    html += '<button class="bdng" onclick="deleteMasterRoom()" style="width:100%;text-align:center;margin-bottom:12px;padding:6px">Удалить комнату</button>';
+  } else {
+    html += '<div style="font-size:.72rem;color:#7a6a52;margin-bottom:8px">Создай комнату — игроки войдут по коду, ты видишь всех на странице мастера.</div>';
+    html += '<button class="bpri" onclick="createMasterRoom()" style="width:100%;margin-bottom:6px">Создать комнату</button>';
+    html += '<div id="room_create_result" style="margin-bottom:8px"></div>';
+  }
+
+  html += '<div class="stitle" style="margin-bottom:8px">Я игрок<div class="sline"></div></div>';
+  if (joinedCode) {
+    html += '<div style="font-size:.78rem;color:#e8dcc8;margin-bottom:8px">Вы в комнате <span style="color:#c9a84c;font-weight:bold">'+joinedCode+'</span></div>';
+    html += '<button class="bdng" onclick="leaveRoom()" style="width:100%;text-align:center;padding:6px">Выйти из комнаты</button>';
+  } else {
+    html += '<div class="row"><input class="inp" id="room_join_inp" placeholder="ABC123" style="text-transform:uppercase;letter-spacing:.15em;font-size:1rem;text-align:center;flex:1">'
+      + '<button class="bpri" onclick="joinRoom()">Войти</button></div>';
+    html += '<div id="room_join_result" style="margin-top:8px"></div>';
+  }
+
+  html += '<button class="btn" style="width:100%;text-align:center;margin-top:14px" onclick="closeMod()">Закрыть</button>';
+  openMod(html);
+}
+
+async function createMasterRoom() {
+  var el = document.getElementById('room_create_result');
+  if (el) el.innerHTML = '<div style="color:#7a6a52;font-size:.75rem">Создаю…</div>';
+  try {
+    var res = await fetch(BACKEND_URL + '/api/room/create', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ platform:'vk', master_id: vkUser.id })
+    });
+    var data = await res.json();
+    if (data.code) { localStorage.setItem('myRoomCode', data.code); openRoomModal(); }
+    else if (el) el.innerHTML = '<div style="color:#e05050;font-size:.75rem">'+(data.error||'Ошибка')+'</div>';
+  } catch(e) { if (el) el.innerHTML = '<div style="color:#e05050;font-size:.75rem">Нет связи с сервером</div>'; }
+}
+
+async function joinRoom() {
+  var code = (document.getElementById('room_join_inp')?.value||'').trim().toUpperCase();
+  var el = document.getElementById('room_join_result');
+  if (!code) return;
+  if (el) el.innerHTML = '<div style="color:#7a6a52;font-size:.75rem">Подключаюсь…</div>';
+  try {
+    var res = await fetch(BACKEND_URL + '/api/room/join', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, platform:'vk', player_id: vkUser.id })
+    });
+    var data = await res.json();
+    if (data.success) { localStorage.setItem('joinedRoomCode', code); ntf('Вошёл в комнату '+code,'#27ae60'); openRoomModal(); }
+    else if (el) el.innerHTML = '<div style="color:#e05050;font-size:.75rem">'+(data.error||'Ошибка')+'</div>';
+  } catch(e) { if (el) el.innerHTML = '<div style="color:#e05050;font-size:.75rem">Нет связи с сервером</div>'; }
+}
+
+async function leaveRoom() {
+  var code = localStorage.getItem('joinedRoomCode');
+  if (!code) return;
+  try {
+    await fetch(BACKEND_URL + '/api/room/leave', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, platform:'vk', player_id: vkUser.id })
+    });
+  } catch(e) {}
+  localStorage.removeItem('joinedRoomCode');
+  ntf('Вышел из комнаты','#e05050');
+  openRoomModal();
+}
+
+function deleteMasterRoom() { localStorage.removeItem('myRoomCode'); openRoomModal(); }
+
+function copyMasterLink(code) {
+  var url = 'https://islimphotos.github.io/-/master/?code=' + code;
+  if (navigator.clipboard) navigator.clipboard.writeText(url).then(function(){ ntf('Ссылка скопирована!','#c9a84c'); }).catch(function(){ _copyFallback(url); });
+  else _copyFallback(url);
+}
+
+async function autoRejoinRoom() {
+  var code = localStorage.getItem('joinedRoomCode');
+  if (!code || !vkUser) return;
+  try {
+    var res = await fetch(BACKEND_URL + '/api/room/join', {
+      method:'POST', headers:{'Content-Type':'application/json'},
+      body: JSON.stringify({ code, platform:'vk', player_id: vkUser.id })
+    });
+    var data = await res.json();
+    if (!data.success) localStorage.removeItem('joinedRoomCode');
+  } catch(e) {}
 }
 
 // ── VK INTEGRATION ───────────────────────────────────────────────────────────
@@ -310,6 +414,7 @@ async function initApp() {
   }
   if (vkUser) {
     await loadCharacter();
+    autoRejoinRoom().catch(function(){});
   } else {
     slots = [defaultChar()]; activeSlot = 0;
   }
@@ -433,6 +538,7 @@ let alchReagentCount=2,alchCircleReagentCount=2;
 let alchBaseSortCol="name",alchBaseSortDir=1,alchBaseSearch="";
 let alchBaseGroupBy="",alchInvGroupBy="",alchInvSortBy="name",alchInvSortDir=1;
 let hcv="",gcv="";
+let hpLogOpen=false;
 
 // ── DERIVED ──
 const skBonus=n=>S.skills.filter(s=>s.bonusTarget===n).reduce((a,s)=>a+(+s.bonusValue||0),0);
@@ -458,9 +564,26 @@ function hccl(){hcv="";document.getElementById("hpcnum").textContent="0";}
 function hcdl(){hcv=hcv.slice(0,-1);document.getElementById("hpcnum").textContent=hcv?parseInt(hcv):"0";}
 function hcApply(t){
   const v=parseInt(hcv)||0;if(v<=0)return;
-  if(t==="d"){const r=Math.max(0,v-arm());S.currentHP=Math.max(0,S.currentHP-r);ntf("Урон: "+v+" → после брони: "+r,"#e05050");}
-  else if(t==="p"){const sk=skBonus("Броня")+acBonus("Броня");const r=Math.max(0,v-sk);S.currentHP=Math.max(0,S.currentHP-r);ntf("Сквозной: "+v+(sk>0?" → -"+sk+" навыки: "+r:""),"#e05050");}
-  else{S.currentHP=Math.min(mhp(),S.currentHP+v);ntf("Исцеление: +"+v+" HP","#27ae60");}
+  let delta=0,desc="";
+  if(t==="d"){
+    const r=Math.max(0,v-arm()),prev=S.currentHP;
+    S.currentHP=Math.max(0,S.currentHP-r);
+    delta=S.currentHP-prev; desc="Урон "+v+(arm()>0?" (−"+arm()+" броня)":"");
+    ntf("Урон: "+v+" → после брони: "+r,"#e05050");
+  } else if(t==="p"){
+    const sk=skBonus("Броня")+acBonus("Броня"),r=Math.max(0,v-sk),prev=S.currentHP;
+    S.currentHP=Math.max(0,S.currentHP-r);
+    delta=S.currentHP-prev; desc="Сквозной "+v+(sk>0?" (−"+sk+" навыки)":"");
+    ntf("Сквозной: "+v+(sk>0?" → -"+sk+" навыки: "+r:""),"#e05050");
+  } else {
+    const prev=S.currentHP;
+    S.currentHP=Math.min(mhp(),S.currentHP+v);
+    delta=S.currentHP-prev; desc="Лечение +"+v;
+    ntf("Исцеление: +"+v+" HP","#27ae60");
+  }
+  if(!S.hpLog)S.hpLog=[];
+  S.hpLog.unshift({t:Date.now(),delta,desc,hp:S.currentHP});
+  if(S.hpLog.length>50)S.hpLog=S.hpLog.slice(0,50);
   closeHpCalc();render();
 }
 const openGoldCalc=()=>{gcv="";document.getElementById("gcnum").textContent="0";document.getElementById("goldcalc").style.display="flex";};
@@ -611,6 +734,31 @@ function rChar(){
     </div>
     <button class="bdng" onclick="S.achievements=S.achievements.filter(x=>x.id!==${a.id});render()">✕</button>
   </div>`).join("")}
+</div>
+${(S.hpLog&&S.hpLog.length>0)?`<div class="card">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${hpLogOpen?8:0}px">
+    <div class="stitle" style="margin-bottom:0">Лог здоровья<div class="sline"></div></div>
+    <div class="row">
+      <button class="btn" style="padding:2px 8px;font-size:.68rem" onclick="hpLogOpen=!hpLogOpen;render()">${hpLogOpen?"Скрыть":"Показать"}</button>
+      <button class="bdng" onclick="S.hpLog=[];render()">Очистить</button>
+    </div>
+  </div>
+  ${hpLogOpen?S.hpLog.slice(0,20).map(e=>{
+    const td=new Date(e.t);
+    const ts=[td.getHours(),td.getMinutes(),td.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");
+    const col=e.delta>=0?"#27ae60":"#e05050";
+    const sign=e.delta>0?"+":"";
+    return `<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #1a1510;font-size:.72rem">
+      <span style="color:#5a4a35;font-family:monospace;flex-shrink:0">${ts}</span>
+      <span style="color:${col};font-weight:bold;min-width:30px;flex-shrink:0">${sign}${e.delta}</span>
+      <span style="color:#7a6a52;flex:1">${e.desc}</span>
+      <span style="color:#e8dcc8;flex-shrink:0">HP: ${e.hp}</span>
+    </div>`;
+  }).join(""):""}
+</div>`:""}
+<div class="card">
+  <div class="stitle" style="margin-bottom:10px">Заметки<div class="sline"></div></div>
+  <textarea class="inp" style="min-height:120px;resize:vertical" oninput="S.notes=this.value">${S.notes||""}</textarea>
 </div>`;
 }
 function addTitle(){S.titles.push({id:Date.now(),text:""});render();setTimeout(()=>{const els=document.querySelectorAll(".text-row .editable");if(els.length)els[els.length-1].focus();},50);}

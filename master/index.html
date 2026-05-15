@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Панель мастера</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0908;color:#e8dcc8;font-family:Georgia,serif;min-height:100vh}
+.app{max-width:900px;margin:0 auto}
+.hdr{background:#17130e;border-bottom:1px solid #2e2214;padding:14px 16px;position:sticky;top:0;z-index:50}
+.hdr-top{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.title{font-size:1.1rem;font-weight:bold;color:#c9a84c;letter-spacing:.08em}
+.lbadge{background:#1a1208;border:1px solid #c9a84c;color:#c9a84c;border-radius:4px;padding:2px 8px;font-size:.7rem;letter-spacing:.1em;white-space:nowrap}
+.cnt{padding:16px}
+.btn{background:#1e1a12;border:1px solid #4a3a22;color:#c9a84c;border-radius:4px;padding:6px 11px;cursor:pointer;font-size:.73rem;font-family:Georgia,serif}
+.btn:hover{background:#2a2218}
+.bpri{background:#c9a84c;border:1px solid #c9a84c;color:#0a0908;border-radius:4px;padding:8px 16px;cursor:pointer;font-size:.82rem;font-weight:bold;font-family:Georgia,serif}
+.bpri:hover{opacity:.85}
+.inp{background:#0a0908;border:1px solid #3a2e1e;color:#e8dcc8;border-radius:4px;padding:8px 12px;font-size:.85rem;font-family:Georgia,serif;outline:none}
+.inp:focus{border-color:#c9a84c}
+.card{background:#13110e;border:1px solid #242018;border-radius:8px;padding:14px;margin-bottom:12px}
+.bwrap{height:8px;background:#1a1510;border-radius:4px;overflow:hidden;margin-top:6px}
+.bfill{height:100%;border-radius:4px;transition:width .6s}
+.row{display:flex;gap:8px;align-items:center}
+.notif{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#13110e;border-radius:6px;padding:8px 16px;z-index:300;font-size:.78rem;pointer-events:none;letter-spacing:.05em;border:1px solid}
+/* player grid */
+.player-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:12px}
+.player-card{background:#13110e;border:1px solid #242018;border-radius:8px;padding:14px;position:relative}
+.player-card:hover{border-color:#3a2e1e}
+.p-name{font-size:1rem;font-weight:bold;color:#c9a84c;margin-bottom:2px}
+.p-sub{font-size:.68rem;color:#7a6a52;margin-bottom:10px}
+.hp-row{display:flex;justify-content:space-between;align-items:center;margin-bottom:4px}
+.hp-label{font-size:.65rem;color:#7a6a52;letter-spacing:.1em;text-transform:uppercase}
+.hp-val{font-size:.82rem;font-weight:bold}
+.p-link{position:absolute;top:10px;right:10px;text-decoration:none;font-size:.65rem;color:#7a6a52;border:1px solid #3a2e1e;border-radius:4px;padding:2px 7px;background:#0a0908}
+.p-link:hover{color:#c9a84c;border-color:#c9a84c}
+/* timer bar */
+.timer-bar{height:3px;background:#1a1510;border-radius:2px;overflow:hidden;margin-top:12px}
+.timer-fill{height:100%;background:#c9a84c;border-radius:2px;transition:width 1s linear}
+/* enter form */
+.enter-form{max-width:340px;margin:80px auto;text-align:center;padding:0 16px}
+.enter-form h2{color:#c9a84c;font-size:1.1rem;letter-spacing:.1em;margin-bottom:8px}
+.enter-form p{color:#7a6a52;font-size:.8rem;margin-bottom:20px}
+</style>
+</head>
+<body>
+<div class="app">
+  <div class="hdr">
+    <div class="hdr-top">
+      <span class="title">⚔ Панель мастера</span>
+      <span class="lbadge" id="roomBadge" style="display:none"></span>
+      <span id="statusEl" style="font-size:.7rem;color:#7a6a52;margin-left:4px"></span>
+      <button class="btn" id="refreshBtn" onclick="loadRoom()" style="margin-left:auto;display:none">🔄 Обновить</button>
+    </div>
+    <div id="timerWrap" style="display:none">
+      <div class="timer-bar"><div class="timer-fill" id="timerFill" style="width:100%"></div></div>
+    </div>
+  </div>
+
+  <!-- Форма ввода кода -->
+  <div id="enterForm" class="enter-form" style="display:none">
+    <h2>ПАНЕЛЬ МАСТЕРА</h2>
+    <p>Введи код комнаты чтобы видеть всех игроков</p>
+    <div class="row" style="justify-content:center;margin-bottom:12px">
+      <input class="inp" id="codeInp" placeholder="ABC123" maxlength="6"
+        style="text-transform:uppercase;letter-spacing:.2em;font-size:1.2rem;text-align:center;width:160px"
+        onkeydown="if(event.key==='Enter')enterCode()">
+      <button class="bpri" onclick="enterCode()">Войти</button>
+    </div>
+    <div id="enterErr" style="color:#e05050;font-size:.78rem;min-height:20px"></div>
+  </div>
+
+  <div class="cnt" id="cnt" style="display:none"></div>
+</div>
+<div id="notifEl" class="notif" style="display:none"></div>
+
+<script>
+const BACKEND_URL = 'https://dnd-sheet-backend-bejb.onrender.com';
+let roomCode = null;
+let refreshInterval = null;
+let timerInterval = null;
+const REFRESH_SEC = 20;
+
+function ntf(m,c){c=c||"#c9a84c";const e=document.getElementById("notifEl");e.textContent=m;e.style.color=c;e.style.borderColor=c;e.style.display="block";clearTimeout(window._nt);window._nt=setTimeout(()=>e.style.display="none",2200);}
+
+function calcMaxHP(cd) {
+  if (!cd) return 0;
+  const attr = cd.attributes || {};
+  const vit = attr.vitality || 0, str = attr.strength || 0;
+  const skills = cd.skills || [], acc = cd.accessories || [];
+  const skB = skills.filter(s=>s.bonusTarget==="Максимум HP").reduce((a,s)=>a+(+s.bonusValue||0),0);
+  const acB = acc.filter(a=>a.equipped&&a.bonusTarget==="Максимум HP").reduce((a,s)=>a+(+s.bonusValue||0),0);
+  return vit*5 + str*2 + skB + acB;
+}
+
+function calcArmor(cd) {
+  if (!cd) return 0;
+  const armors = cd.armors || [], skills = cd.skills || [], acc = cd.accessories || [];
+  const fa = (armors.find(a=>a.equipped)||{}).armorValue || 0;
+  const skB = skills.filter(s=>s.bonusTarget==="Броня").reduce((a,s)=>a+(+s.bonusValue||0),0);
+  const acB = acc.filter(a=>a.equipped&&a.bonusTarget==="Броня").reduce((a,s)=>a+(+s.bonusValue||0),0);
+  return fa + skB + acB;
+}
+
+function renderPlayers(players) {
+  const cnt = document.getElementById('cnt');
+  if (!players || players.length === 0) {
+    cnt.innerHTML = '<div style="text-align:center;padding:60px 16px;color:#7a6a52">'
+      + '<div style="font-size:2rem;margin-bottom:12px">🏰</div>'
+      + '<div style="font-size:.95rem;margin-bottom:8px">Комната пуста</div>'
+      + '<div style="font-size:.78rem">Игроки входят через кнопку 🏰 в приложении и вводят код <span style="color:#c9a84c;font-weight:bold">'+roomCode+'</span></div>'
+      + '</div>';
+    return;
+  }
+
+  const cards = players.map(p => {
+    const cd = p.character_data;
+    if (!cd) return '<div class="player-card" style="color:#7a6a52;font-size:.8rem">Нет данных</div>';
+
+    const name = cd.name || 'Без имени';
+    const level = cd.level || 1;
+    const hp = cd.currentHP || 0;
+    const maxHp = calcMaxHP(cd);
+    const armor = calcArmor(cd);
+    const hpPct = maxHp > 0 ? Math.min(100, Math.max(0, hp / maxHp * 100)) : 0;
+    const hpColor = hpPct > 50 ? '#27ae60' : hpPct > 20 ? '#e67e22' : '#e74c3c';
+    const platIcon = p.platform === 'telegram' ? '📱' : '🌐';
+    const viewUrl = p.platform === 'telegram'
+      ? 'https://islimphotos.github.io/-/view/?tg=' + p.id
+      : 'https://islimphotos.github.io/-/view/?vk=' + p.id;
+
+    // HP log last entry
+    const lastLog = (cd.hpLog && cd.hpLog.length > 0) ? cd.hpLog[0] : null;
+    const lastLogHtml = lastLog ? (() => {
+      const col = lastLog.delta >= 0 ? '#27ae60' : '#e05050';
+      const sign = lastLog.delta > 0 ? '+' : '';
+      const td = new Date(lastLog.t);
+      const ts = [td.getHours(),td.getMinutes(),td.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");
+      return `<div style="font-size:.65rem;color:#7a6a52;margin-top:8px">
+        Последнее: <span style="color:${col};font-weight:bold">${sign}${lastLog.delta}</span>
+        <span style="color:#5a4a35;margin-left:4px">${lastLog.desc}</span>
+        <span style="color:#3a2a18;margin-left:4px">${ts}</span>
+      </div>`;
+    })() : '';
+
+    const notesHtml = cd.notes ? `<div style="font-size:.68rem;color:#5a4a35;margin-top:8px;border-top:1px solid #1a1510;padding-top:6px;white-space:pre-wrap">${cd.notes.slice(0,120)}${cd.notes.length>120?"…":""}</div>` : '';
+
+    return `<div class="player-card">
+      <a href="${viewUrl}" target="_blank" class="p-link">👁 Лист</a>
+      <div class="p-name">${name}</div>
+      <div class="p-sub">${platIcon} УР. ${level}${armor>0?" · 🛡"+armor:""}</div>
+      <div class="hp-row">
+        <span class="hp-label">HP</span>
+        <span class="hp-val" style="color:${hpColor}">${hp} <span style="font-size:.72rem;color:#7a6a52">/ ${maxHp}</span></span>
+      </div>
+      <div class="bwrap"><div class="bfill" style="width:${hpPct}%;background:${hpColor}"></div></div>
+      ${lastLogHtml}
+      ${notesHtml}
+    </div>`;
+  }).join('');
+
+  cnt.innerHTML = '<div class="player-grid">' + cards + '</div>';
+}
+
+function startTimer() {
+  document.getElementById('timerWrap').style.display = 'block';
+  let remaining = REFRESH_SEC;
+  clearInterval(timerInterval);
+  timerInterval = setInterval(function() {
+    remaining--;
+    const pct = (remaining / REFRESH_SEC) * 100;
+    document.getElementById('timerFill').style.width = pct + '%';
+    if (remaining <= 0) { remaining = REFRESH_SEC; loadRoom(); }
+  }, 1000);
+}
+
+async function loadRoom() {
+  if (!roomCode) return;
+  document.getElementById('statusEl').textContent = 'Обновляю…';
+  // Reset timer
+  clearInterval(timerInterval);
+  document.getElementById('timerFill').style.width = '100%';
+  startTimer();
+
+  try {
+    const res = await fetch(BACKEND_URL + '/api/room/' + roomCode);
+    if (!res.ok) {
+      const data = await res.json().catch(()=>({}));
+      document.getElementById('cnt').innerHTML = '<div style="color:#e05050;text-align:center;padding:40px">' + (data.error||'Ошибка загрузки') + '</div>';
+      document.getElementById('statusEl').textContent = '';
+      return;
+    }
+    const data = await res.json();
+    renderPlayers(data.players);
+    const now = new Date();
+    document.getElementById('statusEl').textContent = 'Обновлено в ' + [now.getHours(),now.getMinutes(),now.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");
+    const badge = document.getElementById('roomBadge');
+    badge.textContent = data.players.length + ' игр.';
+  } catch(e) {
+    document.getElementById('statusEl').textContent = 'Ошибка соединения';
+  }
+}
+
+function enterCode() {
+  const code = (document.getElementById('codeInp').value || '').trim().toUpperCase();
+  if (!code || code.length < 4) {
+    document.getElementById('enterErr').textContent = 'Введи код комнаты';
+    return;
+  }
+  location.href = '?code=' + code;
+}
+
+function init() {
+  const p = new URLSearchParams(location.search);
+  roomCode = (p.get('code') || '').toUpperCase() || null;
+
+  if (roomCode) {
+    document.getElementById('roomBadge').textContent = roomCode;
+    document.getElementById('roomBadge').style.display = '';
+    document.getElementById('refreshBtn').style.display = '';
+    document.getElementById('cnt').style.display = '';
+    loadRoom();
+  } else {
+    document.getElementById('enterForm').style.display = 'block';
+  }
+}
+
+init();
+</script>
+</body>
+</html>

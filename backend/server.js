@@ -305,6 +305,97 @@ app.post('/api/link/connect', async (req, res) => {
   res.json({ success: true });
 });
 
+// ── ROOMS ─────────────────────────────────────────────────────────────────────
+
+const rooms = new Map(); // code → { masterPlatform, masterId, players, expires }
+
+function cleanRooms() {
+  for (const [k, v] of rooms) if (Date.now() > v.expires) rooms.delete(k);
+}
+function makeRoomCode() {
+  return Math.random().toString(36).substr(2, 6).toUpperCase();
+}
+
+/**
+ * POST /api/room/create
+ * Тело: { platform, master_id }
+ * Ответ: { code }
+ */
+app.post('/api/room/create', (req, res) => {
+  const { platform, master_id } = req.body;
+  if (!platform || !master_id) return res.status(400).json({ error: 'platform and master_id required' });
+  cleanRooms();
+  // Если уже есть комната у этого мастера — вернуть её
+  for (const [code, room] of rooms) {
+    if (room.masterPlatform === platform && room.masterId === Number(master_id)) {
+      room.expires = Date.now() + 43200000;
+      return res.json({ code, player_count: room.players.length });
+    }
+  }
+  const code = makeRoomCode();
+  rooms.set(code, { masterPlatform: platform, masterId: Number(master_id), players: [], expires: Date.now() + 43200000 });
+  res.json({ code, player_count: 0 });
+});
+
+/**
+ * POST /api/room/join
+ * Тело: { code, platform, player_id }
+ */
+app.post('/api/room/join', (req, res) => {
+  const { code, platform, player_id } = req.body;
+  if (!code || !platform || !player_id) return res.status(400).json({ error: 'code, platform and player_id required' });
+  const room = rooms.get(code.toUpperCase());
+  if (!room) return res.status(404).json({ error: 'Комната не найдена' });
+  if (Date.now() > room.expires) { rooms.delete(code.toUpperCase()); return res.status(410).json({ error: 'Комната истекла' }); }
+  const pid = Number(player_id);
+  if (!room.players.find(p => p.platform === platform && p.id === pid))
+    room.players.push({ platform, id: pid });
+  res.json({ success: true, player_count: room.players.length });
+});
+
+/**
+ * POST /api/room/leave
+ * Тело: { code, platform, player_id }
+ */
+app.post('/api/room/leave', (req, res) => {
+  const { code, platform, player_id } = req.body;
+  if (!code || !platform || !player_id) return res.status(400).json({ error: 'required fields missing' });
+  const room = rooms.get(code.toUpperCase());
+  if (!room) return res.status(404).json({ error: 'Комната не найдена' });
+  room.players = room.players.filter(p => !(p.platform === platform && p.id === Number(player_id)));
+  res.json({ success: true });
+});
+
+/**
+ * GET /api/room/:code
+ * Ответ: { code, players: [{platform, id, character_data}] }
+ */
+app.get('/api/room/:code', async (req, res) => {
+  const room = rooms.get(req.params.code.toUpperCase());
+  if (!room) return res.status(404).json({ error: 'Комната не найдена' });
+  if (Date.now() > room.expires) { rooms.delete(req.params.code.toUpperCase()); return res.status(410).json({ error: 'Комната истекла' }); }
+
+  const playerData = await Promise.all(room.players.map(async p => {
+    try {
+      const field = p.platform === 'telegram' ? 'telegram_id' : 'vk_id';
+      const { data, error } = await supabase.from('characters').select('character_data').eq(field, p.id).single();
+      if (error || !data) return { platform: p.platform, id: p.id, character_data: null };
+      const cd = data.character_data;
+      let charData;
+      if (cd && cd.slots && Array.isArray(cd.slots)) {
+        charData = cd.slots[cd.activeSlot || 0] || cd.slots[0];
+      } else {
+        charData = cd;
+      }
+      return { platform: p.platform, id: p.id, character_data: charData };
+    } catch(e) {
+      return { platform: p.platform, id: p.id, character_data: null };
+    }
+  }));
+
+  res.json({ code: req.params.code.toUpperCase(), players: playerData });
+});
+
 // ── START ─────────────────────────────────────────────────────────────────────
 
 app.listen(PORT, () => {
