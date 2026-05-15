@@ -295,6 +295,7 @@ function openCharSelect() {
     html += '<div style="font-size:.7rem;color:#7a6a52;text-align:center;margin-top:6px">Достигнут максимум (' + MAX_SLOTS + ' персонажей)</div>';
   }
   html += '<button class="btn" onclick="openRoomModal()" style="width:100%;text-align:center;margin-top:8px;border-color:#7a5c1e;color:#c9a84c">🏰 Комната мастера</button>';
+  html += '<button class="btn" onclick="openBackupModal()" style="width:100%;text-align:center;margin-top:6px;border-color:#2a4a2a;color:#27ae60">💾 Резервные копии</button>';
   html += '<button class="btn" style="width:100%;text-align:center;margin-top:6px" onclick="closeMod()">Закрыть</button>';
   openMod(html);
 }
@@ -399,6 +400,156 @@ async function autoRejoinRoom() {
     var data = await res.json();
     if (!data.success) localStorage.removeItem('joinedRoomCode');
   } catch(e) {}
+}
+
+// ── BACKUP SYSTEM ─────────────────────────────────────────────────────────────
+
+var MAX_BACKUPS = 10;
+var BACKUP_KEY = 'charBackups';
+
+function getBackups() {
+  try { return JSON.parse(localStorage.getItem(BACKUP_KEY) || '[]'); } catch(e) { return []; }
+}
+function saveBackups(arr) {
+  localStorage.setItem(BACKUP_KEY, JSON.stringify(arr));
+}
+
+function openBackupModal() {
+  var backups = getBackups();
+  var html = '<div class="stitle">💾 Резервные копии<div class="sline"></div></div>';
+  html += '<div style="font-size:.72rem;color:#7a6a52;margin-bottom:10px">Копии хранятся локально на устройстве. До 10 копий.</div>';
+
+  if (backups.length === 0) {
+    html += '<div style="text-align:center;padding:20px;color:#5a4a35;font-size:.78rem">Нет сохранённых копий</div>';
+  } else {
+    backups.forEach(function(b, i) {
+      var d = new Date(b.ts);
+      var ds = d.toLocaleDateString('ru') + ' ' + d.toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit'});
+      html += '<div style="background:#0a0908;border:1px solid #242018;border-radius:6px;padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:8px">'
+        + '<div style="flex:1;min-width:0">'
+        + '<div style="font-size:.82rem;color:#c9a84c;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">' + (b.name || 'Без имени') + '</div>'
+        + '<div style="font-size:.65rem;color:#7a6a52">УР. ' + (b.level||1) + ' · ' + ds + '</div>'
+        + '</div>'
+        + '<button class="btn" style="font-size:.65rem;padding:4px 8px;white-space:nowrap" onclick="confirmRestoreBackup(' + i + ')">↩ Восст.</button>'
+        + '<button class="bdng" style="font-size:.65rem;padding:4px 8px" onclick="deleteBackup(' + i + ')">✕</button>'
+        + '</div>';
+    });
+  }
+
+  html += '<div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap">'
+    + '<button class="bpri" style="flex:1" onclick="saveBackupNow()">💾 Сохранить копию</button>'
+    + '</div>'
+    + '<div style="display:flex;gap:8px;margin-top:8px;flex-wrap:wrap">'
+    + '<button class="btn" style="flex:1" onclick="exportChar()">📤 Экспорт (JSON)</button>'
+    + '<button class="btn" style="flex:1" onclick="openImportModal()">📥 Импорт (JSON)</button>'
+    + '</div>'
+    + '<button class="btn" style="width:100%;margin-top:8px" onclick="closeMod()">Закрыть</button>';
+  openMod(html);
+}
+
+function saveBackupNow() {
+  saveCurrentSlot();
+  var backups = getBackups();
+  var entry = {
+    ts: Date.now(),
+    name: S.name || 'Без имени',
+    level: S.level || 1,
+    slots: JSON.parse(JSON.stringify(slots)),
+    activeSlot: activeSlot
+  };
+  backups.unshift(entry);
+  if (backups.length > MAX_BACKUPS) backups = backups.slice(0, MAX_BACKUPS);
+  saveBackups(backups);
+  ntf('Копия сохранена!', '#27ae60');
+  openBackupModal();
+}
+
+function deleteBackup(idx) {
+  var backups = getBackups();
+  backups.splice(idx, 1);
+  saveBackups(backups);
+  openBackupModal();
+}
+
+function confirmRestoreBackup(idx) {
+  var backups = getBackups();
+  var b = backups[idx];
+  if (!b) return;
+  var d = new Date(b.ts);
+  var ds = d.toLocaleDateString('ru') + ' ' + d.toLocaleTimeString('ru', {hour:'2-digit',minute:'2-digit'});
+  var html = '<div class="stitle">↩ Восстановить<div class="sline"></div></div>'
+    + '<div style="font-size:.82rem;margin-bottom:16px;color:#e8dcc8">Восстановить персонажа <b style="color:#c9a84c">' + (b.name||'Без имени') + '</b> (от ' + ds + ')? Текущие данные будут перезаписаны.</div>'
+    + '<div style="display:flex;gap:8px">'
+    + '<button class="bdng" style="flex:1" onclick="restoreBackup(' + idx + ')">Да, восстановить</button>'
+    + '<button class="btn" style="flex:1" onclick="openBackupModal()">Отмена</button>'
+    + '</div>';
+  openMod(html);
+}
+
+function restoreBackup(idx) {
+  var backups = getBackups();
+  var b = backups[idx];
+  if (!b) return;
+  slots = JSON.parse(JSON.stringify(b.slots));
+  activeSlot = b.activeSlot || 0;
+  S = slots[activeSlot] || defaultChar();
+  saveCharacter();
+  closeMod();
+  ntf('Персонаж восстановлен!', '#27ae60');
+  render();
+}
+
+function exportChar() {
+  saveCurrentSlot();
+  var json = JSON.stringify({ slots: slots, activeSlot: activeSlot }, null, 2);
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(json).then(function(){ ntf('JSON скопирован в буфер!', '#c9a84c'); }).catch(function(){ _exportFallback(json); });
+  } else { _exportFallback(json); }
+}
+
+function _exportFallback(text) {
+  var html = '<div class="stitle">📤 Экспорт JSON<div class="sline"></div></div>'
+    + '<div style="font-size:.72rem;color:#7a6a52;margin-bottom:8px">Скопируй текст ниже:</div>'
+    + '<textarea class="inp" style="min-height:180px;font-size:.65rem;font-family:monospace" readonly>' + text.replace(/</g,'&lt;') + '</textarea>'
+    + '<button class="btn" style="width:100%;margin-top:8px" onclick="openBackupModal()">Назад</button>';
+  openMod(html);
+}
+
+function openImportModal() {
+  var html = '<div class="stitle">📥 Импорт JSON<div class="sline"></div></div>'
+    + '<div style="font-size:.72rem;color:#7a6a52;margin-bottom:8px">Вставь JSON экспорта:</div>'
+    + '<textarea class="inp" id="importTA" style="min-height:180px;font-size:.65rem;font-family:monospace" placeholder=\'{"slots":[...],"activeSlot":0}\'></textarea>'
+    + '<div id="importErr" style="color:#e05050;font-size:.72rem;min-height:18px;margin-top:4px"></div>'
+    + '<div style="display:flex;gap:8px;margin-top:8px">'
+    + '<button class="bpri" style="flex:1" onclick="doImport()">Импортировать</button>'
+    + '<button class="btn" style="flex:1" onclick="openBackupModal()">Отмена</button>'
+    + '</div>';
+  openMod(html);
+}
+
+function doImport() {
+  var ta = document.getElementById('importTA');
+  var errEl = document.getElementById('importErr');
+  if (!ta) return;
+  try {
+    var parsed = JSON.parse(ta.value.trim());
+    var newSlots, newActive;
+    if (parsed.slots && Array.isArray(parsed.slots) && parsed.slots.length > 0) {
+      newSlots = parsed.slots; newActive = parsed.activeSlot || 0;
+    } else if (parsed.name !== undefined || parsed.level !== undefined) {
+      newSlots = [Object.assign({}, defaultChar(), parsed)]; newActive = 0;
+    } else {
+      if (errEl) errEl.textContent = 'Неверный формат JSON'; return;
+    }
+    slots = newSlots; activeSlot = Math.min(newActive, slots.length - 1);
+    S = slots[activeSlot] || defaultChar();
+    saveCharacter();
+    closeMod();
+    ntf('Импорт выполнен!', '#27ae60');
+    render();
+  } catch(e) {
+    if (errEl) errEl.textContent = 'Ошибка разбора JSON: ' + e.message;
+  }
 }
 
 // ── TELEGRAM INTEGRATION ──────────────────────────────────────────────────────
