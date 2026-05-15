@@ -544,6 +544,7 @@ let alchBaseSortCol="name",alchBaseSortDir=1,alchBaseSearch="";
 let alchBaseGroupBy="",alchInvGroupBy="",alchInvSortBy="name",alchInvSortDir=1;
 let hcv="",gcv="";
 let hpLogOpen=false;
+let notesOpen=false;
 
 // ── DERIVED ──
 const skBonus=n=>S.skills.filter(s=>s.bonusTarget===n).reduce((a,s)=>a+(+s.bonusValue||0),0);
@@ -763,10 +764,11 @@ ${(S.hpLog&&S.hpLog.length>0)?`<div class="card">
   }).join(""):""}
 </div>`:""}
 <div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${notesOpen?10:0}px;cursor:pointer" onclick="notesOpen=!notesOpen;render()">
     <div class="stitle" style="margin-bottom:0">Заметки<div class="sline"></div></div>
+    <span style="color:#c9a84c;font-size:.8rem">${notesOpen?"▲":"▼"}</span>
   </div>
-  <textarea class="inp" style="min-height:120px;resize:vertical" oninput="S.notes=this.value">${S.notes||""}</textarea>
+  ${notesOpen?`<textarea class="inp" style="min-height:120px;resize:vertical" oninput="S.notes=this.value">${S.notes||""}</textarea>`:""}
 </div>`;
 }
 function addTitle(){S.titles.push({id:Date.now(),text:""});render();setTimeout(()=>{const els=document.querySelectorAll(".text-row .editable");if(els.length)els[els.length-1].focus();},50);}
