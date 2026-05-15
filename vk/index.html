@@ -600,10 +600,10 @@ async function loadCharacter() {
 let _saveTimer = null;
 function scheduleSave() {
   clearTimeout(_saveTimer);
-  _saveTimer = setTimeout(function(){ if(vkUser) saveCharacter(); }, 2000);
+  _saveTimer = setTimeout(function(){ if(vkUser) saveCharacter(true); }, 2000);
 }
 
-async function saveCharacter() {
+async function saveCharacter(silent) {
   if (!vkUser) { ntf('Открой через VK!', '#e05050'); return; }
   saveCurrentSlot();
   try {
@@ -613,7 +613,7 @@ async function saveCharacter() {
       body: JSON.stringify({ vk_id: vkUser.id, character_data: { slots: slots, activeSlot: activeSlot } })
     });
     if (res.ok) {
-      ntf('Сохранено ✓', '#27ae60');
+      if (!silent) ntf('Сохранено ✓', '#27ae60');
     } else {
       const err = await res.json().catch(() => ({}));
       const msg = err.details || err.error || ('HTTP ' + res.status);
