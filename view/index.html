@@ -1,0 +1,524 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+<title>Лист персонажа — просмотр</title>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{background:#0a0908;color:#e8dcc8;font-family:Georgia,serif;min-height:100vh}
+.app{max-width:900px;margin:0 auto}
+.hdr{background:#17130e;border-bottom:1px solid #2e2214;padding:14px 16px 0;position:sticky;top:0;z-index:50}
+.hdr-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.cname{font-size:1.4rem;font-weight:bold;color:#c9a84c;letter-spacing:.06em}
+.lbadge{background:#1a1208;border:1px solid #c9a84c;color:#c9a84c;border-radius:4px;padding:2px 8px;font-size:.7rem;letter-spacing:.1em;white-space:nowrap}
+.tabs{display:flex;margin-top:12px;overflow-x:auto}
+.tbtn{padding:8px 12px;background:transparent;border:none;border-top:2px solid transparent;color:#7a6a52;cursor:pointer;font-size:.72rem;letter-spacing:.06em;white-space:nowrap;font-family:Georgia,serif}
+.tbtn.on{background:#0a0908;border-top-color:#c9a84c;color:#c9a84c}
+.cnt{padding:16px}
+.card{background:#13110e;border:1px solid #242018;border-radius:8px;padding:14px;margin-bottom:12px}
+.stitle{font-size:.62rem;letter-spacing:.18em;color:#7a6a52;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
+.sline{flex:1;height:1px;background:linear-gradient(90deg,#2a2018,transparent)}
+.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.bwrap{height:6px;background:#1a1510;border-radius:4px;overflow:hidden;margin-top:4px}
+.bfill{height:100%;border-radius:4px;transition:width .4s}
+.hpnum{font-size:1.7rem;font-weight:bold}
+.snum{font-size:1.4rem;font-weight:bold;color:#7ec8e3}
+.inp{background:#0a0908;border:1px solid #3a2e1e;color:#e8dcc8;border-radius:4px;padding:6px 10px;font-size:.8rem;font-family:Georgia,serif;outline:none;width:100%}
+textarea.inp{resize:vertical;min-height:52px}
+.btn{background:#1e1a12;border:1px solid #4a3a22;color:#c9a84c;border-radius:4px;padding:6px 11px;cursor:pointer;font-size:.73rem;font-family:Georgia,serif}
+.btn:hover{background:#2a2218}
+.bpri{background:#c9a84c;border:1px solid #c9a84c;color:#0a0908;border-radius:4px;padding:6px 11px;cursor:pointer;font-size:.73rem;font-weight:bold;font-family:Georgia,serif}
+.bdng{background:#1f0a0a;border:1px solid #7a2020;color:#e05050;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:.68rem;font-family:Georgia,serif}
+.beq{border-radius:4px;padding:3px 9px;font-size:.66rem;font-family:Georgia,serif;border:1px solid;white-space:nowrap}
+.ag{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.ac{background:#0a0908;border:1px solid #242018;border-radius:6px;padding:10px;text-align:center}
+.av-total{font-size:1.8rem;font-weight:bold;color:#c9a84c;line-height:1}
+.al{font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-top:2px}
+.tg{display:inline-block;border-radius:3px;padding:2px 6px;font-size:.6rem;letter-spacing:.07em;border:1px solid}
+.ir{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#0a0908;border:1px solid #242018;border-radius:6px;margin-bottom:6px}
+.irc{flex-direction:column;align-items:flex-start;gap:4px}
+.pc{background:#0a0908;border:1px solid #242018;border-radius:6px;padding:11px;margin-bottom:10px}
+.ov{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:100}
+.modal{background:#13110e;border:1px solid #3a2e1e;border-radius:10px;padding:22px;width:340px;max-width:95vw;max-height:90vh;overflow-y:auto}
+.mtitle{color:#c9a84c;font-size:.92rem;letter-spacing:.1em;margin-bottom:16px}
+.fl{font-size:.62rem;color:#7a6a52;letter-spacing:.1em;display:block;margin-bottom:3px;margin-top:10px}
+.row{display:flex;gap:6px;align-items:center}
+.notif{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#13110e;border-radius:6px;padding:8px 16px;z-index:300;font-size:.78rem;pointer-events:none;letter-spacing:.05em;border:1px solid}
+select.inp option{background:#13110e}
+.skill-group{margin-bottom:14px}
+.sg-title{font-size:.65rem;letter-spacing:.15em;color:#7a6a52;text-transform:uppercase;padding:6px 0;border-bottom:1px solid #242018;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
+.text-row{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0a0908;border:1px solid #242018;border-radius:5px;margin-bottom:5px}
+.quest-item{background:#0a0908;border:1px solid #242018;border-radius:6px;padding:10px 12px;margin-bottom:7px}
+.quest-done{border-color:#27ae6044;opacity:.7}
+.npc-item{background:#0a0908;border:1px solid #242018;border-radius:6px;padding:10px 12px;margin-bottom:7px}
+.ach-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:#0a0908;border:1px solid #242018;border-radius:6px;margin-bottom:6px}
+.gold-num{font-size:1.8rem;font-weight:bold;color:#c9a84c}
+.inv-sec-hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#0d0b08;border:1px solid #2a2018;border-radius:6px;cursor:pointer;margin-bottom:6px}
+.inv-sec-hdr:hover{background:#131008}
+.inv-sec-title{font-size:.68rem;letter-spacing:.12em;color:#c9a84c;text-transform:uppercase}
+.editable{border:none;background:transparent;color:#e8dcc8;font-family:Georgia,serif;font-size:.78rem;outline:none;width:100%}
+.alch-sect-hdr{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding-bottom:8px}
+.alch-tbl{width:100%;border-collapse:collapse;font-size:.8rem}
+.alch-tbl th{background:#1a1510;color:#c9a84c;font-size:.65rem;letter-spacing:.1em;padding:6px 8px}
+.alch-tbl td{padding:5px 8px;border-bottom:1px solid #1a1510;vertical-align:middle}
+.alch-tbl tr:last-child td{border-bottom:none}
+/* ── VIEW MODE: скрываем всё редактируемое ── */
+input, textarea, select { pointer-events:none !important; }
+input.inp, textarea.inp, select.inp { background:#0a0908 !important; border-color:#1e1a12 !important; }
+.editable { pointer-events:none !important; border-bottom:none !important; }
+.btn:not(.tbtn):not(#refreshBtn), .bpri, .bdng, .beq, .tgl { display:none !important; }
+.inv-sec-hdr { cursor:default !important; }
+.alch-sect-hdr { cursor:default !important; }
+</style>
+</head>
+<body>
+<div class="app">
+<div class="hdr">
+  <div class="hdr-top">
+    <span class="cname" id="charNameDisp"></span>
+    <span class="lbadge" id="lvlD">УР. 1</span>
+    <span class="lbadge" style="background:#0d1020;border-color:#4a6fa5;color:#7ec8e3">👁 Просмотр</span>
+    <button id="refreshBtn" class="btn" onclick="location.reload()" style="margin-left:auto">🔄 Обновить</button>
+  </div>
+  <div class="tabs" id="tabs"></div>
+</div>
+<div id="loading" style="padding:40px;text-align:center;color:#7a6a52;font-size:.9rem">Загрузка…</div>
+<div class="cnt" id="cnt" style="display:none"></div>
+</div>
+<div id="notifEl" class="notif" style="display:none"></div>
+<div id="movl" class="ov" style="display:none" onclick="this.style.display='none'"><div class="modal" onclick="event.stopPropagation()" id="mbox"></div></div>
+<script>
+const BACKEND_URL = 'https://dnd-sheet-backend-bejb.onrender.com';
+
+const AT={strength:"Сила",agility:"Ловкость",vitality:"Живучесть",intellect:"Интеллект",trade:"Торговля",talent:"Талант"};
+const AI={strength:"⚔",agility:"◎",vitality:"♥",intellect:"◆",trade:"◉",talent:"★"};
+const BT=["Броня","Максимум HP","Урон","Бонусный урон","Сила","Ловкость","Живучесть","Интеллект","Торговля","Талант","Мана"];
+
+let S={
+  name:"",level:1,exp:0,expNext:30,
+  attributes:{strength:0,agility:0,vitality:0,intellect:0,trade:0,talent:0},
+  currentHP:0,gold:0,
+  backpackOn:false,backpackSlots:10,professionLimit:6,
+  titles:[],specialProps:[],professions:[],skills:[],weapons:[],armors:[],
+  accessories:[],alchItems:[],potions:[],misc:[],achievements:[],quests:[],
+  npcs:[],globalItemDB:[],alchDB:[],alchInventory:[],procRecipes:[],
+  alchRecipes:[],alchCircleRecipes:[],alchHistory:[],alchSuccessChance:100
+};
+
+function defaultChar(){
+  return {name:"",level:1,exp:0,expNext:30,
+    attributes:{strength:0,agility:0,vitality:0,intellect:0,trade:0,talent:0},
+    currentHP:0,gold:0,backpackOn:false,backpackSlots:10,professionLimit:6,
+    titles:[],specialProps:[],professions:[],skills:[],weapons:[],armors:[],
+    accessories:[],alchItems:[],potions:[],misc:[],achievements:[],quests:[],
+    npcs:[],globalItemDB:[],alchDB:[],alchInventory:[],procRecipes:[],
+    alchRecipes:[],alchCircleRecipes:[],alchHistory:[],alchSuccessChance:100};
+}
+
+let tab="char";
+let invOpen={weapons:true,armors:true,accessories:true,alch:true,potions:true,misc:true};
+let questsOpenDone=false,questsOpenActive=true;
+let alchSectOpen={proc:true,recipes:true,circle:true,base:true,hist:true};
+let alchReagentCount=2,alchCircleReagentCount=2;
+let alchBaseSortCol="name",alchBaseSortDir=1,alchBaseSearch="";
+let alchBaseGroupBy="",alchInvGroupBy="",alchInvSortBy="name",alchInvSortDir=1;
+
+const skBonus=n=>S.skills.filter(s=>s.bonusTarget===n).reduce((a,s)=>a+(+s.bonusValue||0),0);
+const acBonus=n=>S.accessories.filter(a=>a.equipped&&a.bonusTarget===n).reduce((a,s)=>a+(+s.bonusValue||0),0);
+const mhp=()=>S.attributes.vitality*5+S.attributes.strength*2+skBonus("Максимум HP")+acBonus("Максимум HP");
+const arm=()=>(S.armors.find(a=>a.equipped)?.armorValue||0)+skBonus("Броня")+acBonus("Броня");
+const invUsed=()=>S.weapons.length+S.armors.length+S.accessories.length+S.alchItems.length+S.potions.length+S.misc.length;
+const imax=()=>15+(S.backpackOn?S.backpackSlots:0);
+
+function ntf(m,c){c=c||"#c9a84c";const e=document.getElementById("notifEl");e.textContent=m;e.style.color=c;e.style.borderColor=c;e.style.display="block";clearTimeout(window._nt);window._nt=setTimeout(()=>e.style.display="none",2200);}
+const closeMod=()=>document.getElementById("movl").style.display="none";
+const openMod=h=>{document.getElementById("mbox").innerHTML=h;document.getElementById("movl").style.display="flex";};
+const tg=(t,c)=>`<span class="tg" style="color:${c};border-color:${c};background:${c}18">${t}</span>`;
+const eqBtn=(eq,fn)=>{const c=eq?"#27ae60":"#c9a84c",bg=eq?"#0d1f0d":"#1e1a12",bc=eq?"#27ae60":"#4a3a22";return`<button class="beq" style="color:${c};border-color:${bc};background:${bg}" onclick="${fn}">${eq?"Снять":"Надеть"}</button>`;};
+const setTab=t=>{tab=t;render();};
+
+function armorBreakdown(){
+  const eq=S.armors.find(x=>x.equipped);
+  const fa=eq?eq.armorValue:0,fs=skBonus("Броня"),fc=acBonus("Броня");
+  if(!eq&&fs===0&&fc===0)return '<div style="font-size:.62rem;color:#5a4a35;margin-top:2px">нет доспеха</div>';
+  let s='<div style="margin-top:3px">';
+  if(fa>0)s+='<div style="font-size:.62rem;color:#7a6a52">'+eq.name+': <span style="color:#7ec8e3">'+fa+'</span></div>';
+  if(fs>0)s+='<div style="font-size:.62rem;color:#7a6a52">Навыки: <span style="color:#27ae60">+'+fs+'</span></div>';
+  if(fc>0)s+='<div style="font-size:.62rem;color:#7a6a52">Аксессуары: <span style="color:#9b59b6">+'+fc+'</span></div>';
+  return s+'</div>';
+}
+
+function rChar(){
+  const h=mhp(),a=arm(),hp=S.currentHP;
+  const pp=Math.min(100,Math.max(0,hp/h*100)),ep=Math.min(100,S.exp/S.expNext*100);
+  const hc=pp>50?"#27ae60":pp>25?"#e67e22":"#e74c3c";
+  return `
+<div class="card">
+  <div class="stitle">Основное<div class="sline"></div></div>
+  <div class="g2">
+    <div>
+      <div style="font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:4px">ИМЯ</div>
+      <input class="inp" value="${S.name}" readonly>
+      <div style="margin-top:10px;font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:4px">УРОВЕНЬ</div>
+      <input class="inp" type="number" value="${S.level}" style="width:70px" readonly>
+      <div style="margin-top:10px;font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:2px">ОПЫТ</div>
+      <div class="bwrap"><div class="bfill" style="width:${ep}%;background:linear-gradient(90deg,#7a5c1e,#c9a84c)"></div></div>
+      <div class="row" style="margin-top:6px;gap:4px">
+        <input class="inp" type="number" value="${S.exp}" style="width:62px" readonly>
+        <span style="color:#7a6a52">/</span>
+        <input class="inp" type="number" value="${S.expNext}" style="width:62px" readonly>
+      </div>
+    </div>
+    <div>
+      <div style="font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:2px">ЗДОРОВЬЕ</div>
+      <div style="display:flex;align-items:baseline;gap:5px">
+        <span class="hpnum" style="color:${hc}">${hp}</span>
+        <span style="color:#7a6a52;font-size:.85rem">/ ${h}</span>
+      </div>
+      <div class="bwrap"><div class="bfill" style="width:${pp}%;background:${hc}"></div></div>
+      <div style="margin-top:12px;font-size:.62rem;color:#7a6a52;letter-spacing:.1em">БРОНЯ</div>
+      <div class="snum">${a}</div>
+      ${armorBreakdown()}
+    </div>
+  </div>
+</div>
+<div class="card">
+  <div class="stitle">Атрибуты<div class="sline"></div></div>
+  <div class="ag">
+    ${Object.entries(AT).map(([k,l])=>{
+      const base=S.attributes[k],fs=skBonus(l),fc=acBonus(l),total=base+fs+fc;
+      const hasB=fs>0||fc>0;
+      return `<div class="ac">
+        <div style="font-size:1rem">${AI[k]}</div>
+        <div class="av-total">${total}</div>
+        <div class="al">${l}</div>
+        ${hasB?`<div style="font-size:.62rem;color:#7a6a52;margin-top:4px;line-height:1.5">
+          <div>база: ${base}</div>
+          ${fs>0?`<div style="color:#27ae60">+${fs} навыки</div>`:""}
+          ${fc>0?`<div style="color:#27ae60">+${fc} аксессуары</div>`:""}
+        </div>`:""}
+      </div>`;
+    }).join("")}
+  </div>
+</div>
+${S.titles.length>0?`<div class="card">
+  <div class="stitle">Звания и титулы<div class="sline"></div></div>
+  ${S.titles.map(t=>`<div class="text-row"><span style="flex:1;font-size:.78rem">${t.text}</span></div>`).join("")}
+</div>`:""}
+${S.specialProps.length>0?`<div class="card">
+  <div class="stitle">Особые свойства<div class="sline"></div></div>
+  ${S.specialProps.map(t=>`<div class="text-row"><span style="flex:1;font-size:.78rem">${t.text}</span></div>`).join("")}
+</div>`:""}
+${S.achievements.length>0?`<div class="card">
+  <div class="stitle">Ачивки<div class="sline"></div></div>
+  ${S.achievements.map(a=>`<div class="ach-item">
+    <div style="font-size:1rem;margin-top:1px">🏆</div>
+    <div style="flex:1">
+      <div style="font-weight:bold;font-size:.82rem">${a.name}</div>
+      ${a.property?`<div style="font-size:.72rem;color:#7a6a52;margin-top:2px">${a.property}</div>`:""}
+    </div>
+  </div>`).join("")}
+</div>`:""}`;
+}
+
+function rProf(){
+  return `<div class="card">
+    <div class="stitle" style="margin-bottom:12px">Профессии<div class="sline"></div></div>
+    ${S.professions.length===0?'<div style="color:#7a6a52;font-size:.8rem">Нет профессий</div>':""}
+    ${S.professions.map(p=>{
+      const pp=Math.min(100,p.exp/p.expNext*100);
+      const cnt=S.skills.filter(s=>s.source===p.name).length;
+      return `<div class="pc">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div><span style="font-weight:bold;font-size:.92rem">${p.name}</span> <span class="lbadge">УР. ${p.level}</span></div>
+        </div>
+        <div style="font-size:.7rem;color:#7a6a52;margin-top:6px">Опыт: ${p.exp} / ${p.expNext}</div>
+        <div class="bwrap"><div class="bfill" style="width:${pp}%;background:linear-gradient(90deg,#7a5c1e,#c9a84c)"></div></div>
+        ${cnt>0?`<div style="margin-top:6px;font-size:.65rem;color:#7a6a52">${cnt} навык(ов)</div>`:""}
+      </div>`;
+    }).join("")}
+  </div>`;
+}
+
+function rSkills(){
+  const sources=[...Object.values(AT),...S.professions.map(p=>p.name),"Другое"];
+  const used=sources.filter(s=>S.skills.some(x=>x.source===s));
+  return `<div class="card">
+    <div class="stitle" style="margin-bottom:12px">Навыки<div class="sline"></div></div>
+    ${S.skills.length===0?'<div style="color:#7a6a52;font-size:.8rem">Нет навыков</div>':""}
+    ${used.map(src=>`<div class="skill-group">
+      <div class="sg-title">${src} <span style="color:#4a3a22">(${S.skills.filter(s=>s.source===src).length})</span></div>
+      ${S.skills.filter(s=>s.source===src).map(s=>`<div class="ir irc">
+        <div style="display:flex;width:100%;justify-content:space-between;align-items:center">
+          <div class="row" style="flex-wrap:wrap;gap:4px">
+            <span style="font-weight:bold;font-size:.82rem">${s.name}</span>
+            ${tg(s.type==="passive"?"Пассивный":"Активный",s.type==="passive"?"#7a6a52":"#c9a84c")}
+          </div>
+        </div>
+        ${s.description?`<div style="font-size:.72rem;color:#7a6a52">${s.description}</div>`:""}
+        ${s.property?`<div style="font-size:.7rem;color:#27ae60">${s.property}</div>`:""}
+        ${s.comment?`<div style="font-size:.68rem;color:#5a4a35;font-style:italic">${s.comment}</div>`:""}
+      </div>`).join("")}
+    </div>`).join("")}
+  </div>`;
+}
+
+function invSec(key,title,items,innerFn){
+  const open=invOpen[key];
+  return `<div style="margin-bottom:4px">
+    <div class="inv-sec-hdr" onclick="invOpen['${key}']=!invOpen['${key}'];render()">
+      <span class="inv-sec-title">${title}</span>
+      <div class="row" style="gap:6px">
+        <span style="font-size:.68rem;color:#7a6a52">${items.length} пред.</span>
+        <span style="color:#c9a84c;font-size:.8rem">${open?"▲":"▼"}</span>
+      </div>
+    </div>
+    ${open?`<div style="margin-bottom:8px">${innerFn()}</div>`:""}
+  </div>`;
+}
+
+function rInv(){
+  const u=invUsed(),mx=imax(),p=Math.min(100,u/mx*100);
+  return `
+<div class="card">
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
+    <div class="stitle" style="margin-bottom:0">Слоты<div class="sline"></div></div>
+    <span style="font-size:.75rem;color:${u>=mx?"#e05050":"#c9a84c"}">${u} / ${mx}</span>
+  </div>
+  <div class="bwrap"><div class="bfill" style="width:${p}%;background:${u>=mx?"#c0392b":"linear-gradient(90deg,#7a5c1e,#c9a84c)"}"></div></div>
+  <div style="margin-top:8px;font-size:.75rem;color:${S.backpackOn?"#27ae60":"#7a6a52"}">Рюкзак: ${S.backpackOn?"надет (+"+S.backpackSlots+" слотов)":"снят"}</div>
+</div>
+<div class="card">
+  <div class="stitle" style="margin-bottom:8px">Золото<div class="sline"></div></div>
+  <div class="gold-num">${S.gold} <span style="font-size:1rem;color:#7a5c1e">зол.</span></div>
+</div>
+<div class="card">
+  ${invSec("weapons","Оружие",S.weapons,()=>
+    S.weapons.length===0?'<div style="color:#7a6a52;font-size:.8rem;padding:4px">Нет оружия</div>':
+    S.weapons.map(w=>`<div class="ir irc">
+      <div style="display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:6px">
+        <div style="flex:1">
+          <div class="row" style="flex-wrap:wrap;gap:4px">
+            <span style="font-weight:bold;font-size:.84rem">${w.name}</span>
+            ${w.equipped?tg("Снаряжено","#27ae60"):""}
+          </div>
+        </div>
+        <span style="font-size:.72rem;color:#7a6a52">x${w.qty||1}</span>
+      </div>
+      ${w.damage?`<div style="font-size:.72rem;color:#7a6a52">Урон: <span style="color:#c9a84c">${w.damage}</span>${w.bonusDamage?" · "+w.bonusDamage:""}</div>`:""}
+      ${w.property?`<div style="font-size:.7rem;color:#7a6a52">Свойство: ${w.property}</div>`:""}
+      ${w.comment?`<div style="font-size:.68rem;color:#5a4a35;font-style:italic">${w.comment}</div>`:""}
+    </div>`).join("")
+  )}
+  ${invSec("armors","Доспехи",S.armors,()=>
+    S.armors.length===0?'<div style="color:#7a6a52;font-size:.8rem;padding:4px">Нет доспехов</div>':
+    S.armors.map(a=>`<div class="ir irc">
+      <div style="display:flex;width:100%;justify-content:space-between">
+        <div class="row" style="flex-wrap:wrap;gap:4px">
+          <span style="font-weight:bold;font-size:.84rem">${a.name}</span>
+          ${a.equipped?tg("Надето","#7ec8e3"):""}
+        </div>
+      </div>
+      <div style="font-size:.72rem;color:#7a6a52">Броня: <span style="color:#7ec8e3">${a.armorValue}</span></div>
+      ${a.property?`<div style="font-size:.7rem;color:#7a6a52">Свойство: ${a.property}</div>`:""}
+      ${a.comment?`<div style="font-size:.68rem;color:#5a4a35;font-style:italic">${a.comment}</div>`:""}
+    </div>`).join("")
+  )}
+  ${invSec("accessories","Аксессуары",S.accessories,()=>
+    S.accessories.length===0?'<div style="color:#7a6a52;font-size:.8rem;padding:4px">Нет аксессуаров</div>':
+    S.accessories.map(a=>`<div class="ir irc">
+      <div style="display:flex;width:100%;justify-content:space-between">
+        <div class="row" style="flex-wrap:wrap;gap:4px">
+          <span style="font-weight:bold;font-size:.84rem">${a.name}</span>
+          ${a.equipped?tg("Надето","#9b59b6"):""}
+        </div>
+      </div>
+      ${a.property?`<div style="font-size:.7rem;color:#7a6a52">Свойство: ${a.property}</div>`:""}
+      ${a.bonusTarget?`<div style="font-size:.7rem;color:#27ae60">+${a.bonusValue} ${a.bonusTarget}</div>`:""}
+      ${a.comment?`<div style="font-size:.68rem;color:#5a4a35;font-style:italic">${a.comment}</div>`:""}
+    </div>`).join("")
+  )}
+  ${invSec("alch","Алхимические предметы",S.alchItems,()=>
+    S.alchItems.length===0?'<div style="color:#7a6a52;font-size:.8rem;padding:4px">Нет предметов</div>':
+    S.alchItems.map(it=>`<div class="ir irc">
+      <div style="display:flex;width:100%;justify-content:space-between">
+        <span style="font-weight:bold;font-size:.84rem">${it.name}</span>
+        <span style="font-size:.72rem;color:#7a6a52">x${it.qty||1}</span>
+      </div>
+      <div style="font-size:.72rem;color:#7a6a52">Ур. ${it.level}${it.attribute?" · "+it.attribute:""}</div>
+      ${it.property?`<div style="font-size:.7rem;color:#7a6a52">${it.property}</div>`:""}
+    </div>`).join("")
+  )}
+  ${invSec("potions","Зелья и аптечки",S.potions,()=>
+    S.potions.length===0?'<div style="color:#7a6a52;font-size:.8rem;padding:4px">Нет зелий</div>':
+    S.potions.map(it=>`<div class="ir irc">
+      <div style="display:flex;width:100%;justify-content:space-between">
+        <span style="font-weight:bold;font-size:.84rem">${it.name}</span>
+        <span style="font-size:.72rem;color:#7a6a52">x${it.qty||1}</span>
+      </div>
+      ${it.property?`<div style="font-size:.7rem;color:#7a6a52">${it.property}</div>`:""}
+    </div>`).join("")
+  )}
+  ${invSec("misc","Остальное",S.misc,()=>
+    S.misc.length===0?'<div style="color:#7a6a52;font-size:.8rem;padding:4px">Нет предметов</div>':
+    S.misc.map(it=>`<div class="ir irc">
+      <div style="display:flex;width:100%;justify-content:space-between">
+        <span style="font-weight:bold;font-size:.84rem">${it.name}</span>
+        <span style="font-size:.72rem;color:#7a6a52">x${it.qty||1}</span>
+      </div>
+      ${it.property?`<div style="font-size:.7rem;color:#7a6a52">${it.property}</div>`:""}
+    </div>`).join("")
+  )}
+</div>`;
+}
+
+function alchLabel(it){return it?it.name+" [ур."+it.level+", "+it.attribute+"]":"?";}
+function alchFind(id){return S.alchDB.find(x=>x.id===id);}
+function alchTimePretty(ts){const d=new Date(ts);return [d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");}
+function alchSect(key,title,inner){
+  const open=alchSectOpen[key];
+  return '<div class="card">'
+    +'<div class="alch-sect-hdr" onclick="alchSectOpen.'+key+'=!alchSectOpen.'+key+';render()">'
+    +'<div class="stitle" style="margin-bottom:0">'+title+'<div class="sline"></div></div>'
+    +'<span style="color:#c9a84c">'+(open?"▲":"▼")+'</span></div>'
+    +(open?inner:"")+'</div>';
+}
+
+function rAlch(){
+  let invRows="";
+  const invSorted=[...S.alchInventory].sort((a,b)=>{
+    const ia=alchFind(a.dbId),ib=alchFind(b.dbId);if(!ia||!ib)return 0;
+    return ia.name.localeCompare(ib.name,"ru");
+  });
+  for(const entry of invSorted){
+    const it=alchFind(entry.dbId);if(!it)continue;
+    invRows+='<tr><td style="text-align:left;padding:6px 8px">'+it.name+'</td>'
+      +'<td style="text-align:center">'+it.level+'</td>'
+      +'<td style="text-align:center">'+it.attribute+'</td>'
+      +'<td style="text-align:center;color:#c9a84c">'+entry.qty+'</td></tr>';
+  }
+
+  const groups=S.alchDB.slice().sort((a,b)=>a.name.localeCompare(b.name,"ru"));
+  let baseRows="";
+  for(const it of groups){
+    const inInv=S.alchInventory.find(x=>x.dbId===it.id);
+    baseRows+='<tr><td style="text-align:left;padding:6px 8px">'+it.name+'</td>'
+      +'<td style="text-align:center">'+it.level+'</td>'
+      +'<td style="text-align:center">'+it.attribute+'</td>'
+      +'<td style="text-align:center">'+(inInv?inInv.qty:0)+'</td></tr>';
+  }
+  if(!baseRows)baseRows='<tr><td colspan="4" style="color:#7a6a52;font-style:italic;padding:10px">База пуста</td></tr>';
+
+  const histColors={add:"#27ae60",update:"#7ec8e3",del:"#e05050",success:"#27ae60",error:"#e05050",synth:"#9b59b6",recipe:"#c9a84c"};
+  const histHtml=S.alchHistory.length===0
+    ?'<div style="color:#7a6a52;font-size:.78rem;padding:6px">Нет событий</div>'
+    :S.alchHistory.slice(0,50).map(e=>'<div style="font-size:.72rem;padding:3px 0;border-bottom:1px solid #1a1510;color:'+(histColors[e.type]||"#7a6a52")+'">'
+      +'<span style="color:#5a4a35;font-family:monospace">'+alchTimePretty(e.t)+'</span>'
+      +' <span style="font-weight:bold">'+e.txt+'</span>'
+      +(e.extra?' <span style="color:#7a6a52">'+e.extra+'</span>':"")+'</div>').join("");
+
+  const invSection='<div class="card"><div class="stitle">Инвентарь алхимика<div class="sline"></div></div>'
+    +'<div style="overflow-x:auto"><table class="alch-tbl">'
+    +'<tr><th style="text-align:left">НАЗВАНИЕ</th><th>УР.</th><th>АТРИБУТ</th><th>КОЛ-ВО</th></tr>'
+    +(invRows||'<tr><td colspan="4" style="color:#7a6a52;font-style:italic;padding:10px">Пусто</td></tr>')
+    +'</table></div></div>';
+
+  const baseSection=alchSect("base","База предметов",
+    '<div style="overflow-x:auto"><table class="alch-tbl">'
+    +'<tr><th style="text-align:left">НАЗВАНИЕ</th><th>УР.</th><th>АТРИБУТ</th><th>В ИНВ.</th></tr>'
+    +baseRows+'</table></div>');
+
+  const histCard='<div class="card"><div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(alchSectOpen.hist?"8":"0")+'px">'
+    +'<div class="stitle" style="margin-bottom:0">История<div class="sline"></div></div>'
+    +'<button class="btn tbtn" style="padding:3px 8px;font-size:.68rem" onclick="alchSectOpen.hist=!alchSectOpen.hist;render()">'+(alchSectOpen.hist?"Скрыть":"Показать")+'</button>'
+    +'</div>'+(alchSectOpen.hist?'<div style="max-height:200px;overflow-y:auto;background:#0a0908;border:1px solid #242018;border-radius:6px;padding:8px">'+histHtml+'</div>':"")+'</div>';
+
+  return invSection+baseSection+histCard;
+}
+
+function rQNPC(){
+  var active=S.quests.filter(function(q){return !q.done;}),done=S.quests.filter(function(q){return q.done;});
+  var activeHtml=active.map(function(q){
+    return '<div class="quest-item"><div style="font-weight:bold;font-size:.82rem">'+q.name+'</div>'
+      +(q.description?'<div style="font-size:.72rem;color:#7a6a52;margin-top:3px">'+q.description+'</div>':"")+'</div>';
+  }).join("");
+  var doneHtml=done.map(function(q){
+    return '<div class="quest-item quest-done"><div style="font-weight:bold;font-size:.82rem;text-decoration:line-through">'+q.name+'</div>'
+      +(q.description?'<div style="font-size:.72rem;color:#7a6a52;margin-top:3px">'+q.description+'</div>':"")+'</div>';
+  }).join("");
+  var npcHtml=S.npcs.map(function(n){
+    return '<div class="npc-item"><div style="font-weight:bold;font-size:.84rem;color:#c9a84c">'+n.name+'</div>'
+      +(n.notes?'<div style="font-size:.72rem;color:#7a6a52;margin-top:4px">'+n.notes+'</div>':"")+'</div>';
+  }).join("");
+  return '<div class="card">'
+    +'<div class="stitle" style="margin-bottom:8px">Квесты и задачи<div class="sline"></div></div>'
+    +'<div style="font-size:.65rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:8px;cursor:pointer" onclick="questsOpenActive=!questsOpenActive;render()">АКТИВНЫЕ ('+active.length+') '+(questsOpenActive?"▲":"▼")+'</div>'
+    +(questsOpenActive?(activeHtml||'<div style="color:#7a6a52;font-size:.8rem;margin-bottom:8px">Нет активных квестов</div>'):"")
+    +'<div style="font-size:.65rem;color:#7a6a52;letter-spacing:.1em;margin-top:10px;margin-bottom:8px;cursor:pointer" onclick="questsOpenDone=!questsOpenDone;render()">ВЫПОЛНЕНЫ ('+done.length+') '+(questsOpenDone?"▲":"▼")+'</div>'
+    +(questsOpenDone?doneHtml:"")
+    +'</div>'
+    +'<div class="card"><div class="stitle" style="margin-bottom:8px">Персонажи (НПС)<div class="sline"></div></div>'
+    +(S.npcs.length===0?'<div style="color:#7a6a52;font-size:.8rem">Нет записей</div>':npcHtml)+'</div>';
+}
+
+function rPh(i,t){return '<div class="card"><div style="text-align:center;padding:36px 16px"><div style="font-size:2.2rem;margin-bottom:10px">'+i+'</div><div style="color:#c9a84c;font-size:.95rem;letter-spacing:.1em">'+t+'</div><div style="color:#7a6a52;font-size:.78rem;margin-top:6px">В разработке</div></div></div>';}
+
+function render(){
+  document.getElementById("charNameDisp").textContent = S.name || "Безымянный";
+  document.getElementById("lvlD").textContent = "УР. " + S.level;
+  var map={char:rChar,professions:rProf,skills:rSkills,inventory:rInv,alchemy:rAlch,magic:function(){return rPh("🔮","СИСТЕМА МАГИИ");},qnpc:rQNPC};
+  document.getElementById("cnt").innerHTML=(map[tab]||rChar)();
+  var tbs=[["char","Персонаж"],["professions","Профессии"],["skills","Навыки"],["inventory","Инвентарь"],["alchemy","Алхимия"],["magic","Магия"],["qnpc","Квесты / НПС"]];
+  var tabButtons=[];
+  tbs.forEach(function(tb2){var k=tb2[0],l=tb2[1];tabButtons.push('<button class="tbtn'+(tab===k?' on':'')+'" onclick="setTab(\''+k+'\')">'+l+'</button>');});
+  document.getElementById("tabs").innerHTML=tabButtons.join("");
+}
+
+async function initApp(){
+  const p=new URLSearchParams(location.search);
+  const tgId=p.get('tg'), vkId=p.get('vk');
+  const slotIdx=Math.max(0,parseInt(p.get('slot'))||0);
+
+  let url=null;
+  if(tgId) url=BACKEND_URL+'/api/character/'+tgId;
+  else if(vkId) url=BACKEND_URL+'/api/character/vk/'+vkId;
+
+  if(!url){
+    document.getElementById('loading').innerHTML='<div style="color:#e05050;font-size:.9rem">Персонаж не найден.<br><div style="font-size:.75rem;margin-top:8px;color:#7a6a52">Укажи ?tg=ID или ?vk=ID в адресе</div></div>';
+    return;
+  }
+
+  try{
+    document.getElementById('loading').textContent='Загрузка…';
+    const res=await fetch(url);
+    if(!res.ok){
+      document.getElementById('loading').innerHTML='<div style="color:#e05050">Персонаж не найден</div>';
+      return;
+    }
+    const data=await res.json();
+    const cd=data.character_data;
+    if(cd){
+      let src;
+      if(cd.slots&&Array.isArray(cd.slots)){
+        src=cd.slots[slotIdx]||cd.slots[0]||{};
+      } else {
+        src=cd;
+      }
+      Object.assign(S,defaultChar(),src);
+    }
+  } catch(e){
+    document.getElementById('loading').innerHTML='<div style="color:#e05050">Нет связи с сервером</div>';
+    return;
+  }
+
+  document.getElementById('loading').style.display='none';
+  document.getElementById('cnt').style.display='';
+  render();
+}
+
+initApp();
+</script>
+</body>
+</html>

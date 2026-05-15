@@ -255,6 +255,19 @@ function deleteChar(idx) {
   ntf('Персонаж удалён', '#e05050');
 }
 
+function copyViewLink(idx) {
+  if (!telegramUser) { ntf('Открой через Telegram!', '#e05050'); return; }
+  var url = 'https://islimphotos.github.io/-/view/?tg=' + telegramUser.id + '&slot=' + idx;
+  if (navigator.clipboard) {
+    navigator.clipboard.writeText(url).then(function(){ ntf('Ссылка скопирована!', '#c9a84c'); }).catch(function(){ _copyFallback(url); });
+  } else { _copyFallback(url); }
+}
+function _copyFallback(url) {
+  var el = document.createElement('input'); el.value = url;
+  document.body.appendChild(el); el.select(); document.execCommand('copy');
+  document.body.removeChild(el); ntf('Ссылка скопирована!', '#c9a84c');
+}
+
 function openCharSelect() {
   var html = '<div class="mtitle">👤 Персонажи</div>';
   slots.forEach(function(sl, i) {
@@ -267,9 +280,10 @@ function openCharSelect() {
       + '<div class="slot-name">' + nm + (isActive ? ' ✦' : '') + '</div>'
       + '<div class="slot-lvl">УР. ' + lvl + (isActive ? ' · активный' : '') + '</div>'
       + '</div>'
-      + (slots.length > 1
-          ? '<button class="bdng" onclick="event.stopPropagation();confirmDeleteChar(' + i + ')" style="font-size:.65rem;padding:3px 7px">✕</button>'
-          : '')
+      + '<div class="row" style="flex-shrink:0;gap:4px">'
+      + '<button class="btn" onclick="event.stopPropagation();copyViewLink(' + i + ')" style="padding:3px 7px;font-size:.65rem" title="Ссылка для мастера">📎</button>'
+      + (slots.length > 1 ? '<button class="bdng" onclick="event.stopPropagation();confirmDeleteChar(' + i + ')" style="font-size:.65rem;padding:3px 7px">✕</button>' : '')
+      + '</div>'
       + '</div>';
   });
   if (slots.length < MAX_SLOTS) {
