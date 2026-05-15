@@ -933,6 +933,7 @@ function addSpecial(){S.specialProps.push({id:Date.now(),text:""});render();setT
 
 // ── PROFESSIONS TAB ──
 function rProf(){
+  const KCOLORS={Лечение:"#27ae60",Алхимия:"#9b59b6",Магия:"#7ec8e3",Бой:"#e05050"};
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="stitle" style="margin-bottom:0">Профессии<div class="sline"></div></div>
@@ -942,15 +943,34 @@ function rProf(){
       </div>
     </div>
     ${S.professions.map(p=>{
-      const pp=Math.min(100,p.exp/p.expNext*100);
+      const pp=Math.min(100,p.exp/(p.expNext||1)*100);
       const cnt=S.skills.filter(s=>s.source===p.name).length;
+      const kc=KCOLORS[p.knowledgeArea]||"#7a6a52";
+      const displayName=p.uniqueName||p.name;
       return `<div class="pc">
-        <div style="display:flex;justify-content:space-between;align-items:center">
-          <div><span style="font-weight:bold;font-size:.92rem">${p.name}</span> <span class="lbadge">УР. ${p.level}</span></div>
-          <button class="btn" onclick="oEditProf(${p.id})">Изменить</button>
+        <div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">
+          <div style="min-width:0">
+            <div style="font-weight:bold;font-size:1rem;color:#c9a84c">${displayName}</div>
+            <div style="display:flex;align-items:center;gap:6px;margin-top:2px;flex-wrap:wrap">
+              ${p.uniqueName?`<span style="font-size:.7rem;color:#7a6a52">${p.name}</span>`:""}
+              <span class="lbadge">УР. ${p.level}</span>
+            </div>
+          </div>
+          <button class="btn" style="flex-shrink:0;font-size:.68rem" onclick="oEditProf(${p.id})">Изменить</button>
         </div>
-        <div style="font-size:.7rem;color:#7a6a52;margin-top:6px">Опыт: ${p.exp} / ${p.expNext}</div>
-        <div class="bwrap"><div class="bfill" style="width:${pp}%;background:linear-gradient(90deg,#7a5c1e,#c9a84c)"></div></div>
+        <div style="margin-top:6px">
+          ${p.knowledgeArea
+            ?`<span style="font-size:.65rem;border:1px solid ${kc};color:${kc};border-radius:3px;padding:1px 7px">${p.knowledgeArea}</span>`
+            :`<button class="btn" style="font-size:.65rem;padding:2px 8px" onclick="oSetKnowledge(${p.id})">+ Область знаний</button>`
+          }
+        </div>
+        <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
+          <span style="font-size:.65rem;color:#7a6a52;flex-shrink:0">Опыт:</span>
+          <input class="inp" type="number" value="${p.exp}" min="0" style="width:62px;padding:4px 6px" onchange="S.professions=S.professions.map(x=>x.id===${p.id}?{...x,exp:Math.max(0,+this.value)}:x);render()">
+          <span style="font-size:.65rem;color:#7a6a52">/</span>
+          <input class="inp" type="number" value="${p.expNext}" min="1" style="width:62px;padding:4px 6px" onchange="S.professions=S.professions.map(x=>x.id===${p.id}?{...x,expNext:Math.max(1,+this.value)}:x);render()">
+        </div>
+        <div class="bwrap" style="margin-top:6px"><div class="bfill" style="width:${pp}%;background:linear-gradient(90deg,#7a5c1e,#c9a84c)"></div></div>
         ${cnt>0?`<div style="margin-top:6px;font-size:.65rem;color:#7a6a52">${cnt} навык(ов) — см. раздел Навыки</div>`:""}
       </div>`;
     }).join("")}
@@ -974,8 +994,9 @@ function rSkills(){
           <div class="row" style="flex-wrap:wrap;gap:4px">
             <span style="font-weight:bold;font-size:.82rem">${s.name}</span>
             ${tg(s.type==="passive"?"Пассивный":"Активный",s.type==="passive"?"#7a6a52":"#c9a84c")}
+            ${s.level?tg("УР."+s.level,"#7ec8e3"):""}
           </div>
-          <button class="bdng" onclick="S.skills=S.skills.filter(x=>x.id!==${s.id});render()">✕</button>
+          <button class="btn" style="padding:3px 8px;font-size:.66rem;flex-shrink:0" onclick="oEditSk(${s.id})">✏</button>
         </div>
         ${s.description?`<div style="font-size:.72rem;color:#7a6a52">${s.description}</div>`:""}
         ${s.property?`<div style="font-size:.7rem;color:#27ae60">${s.property}</div>`:""}
@@ -1377,10 +1398,15 @@ function rAlch(){
     +(alchSectOpen.hist?histInner:"")
     +'</div>';
 
+  const hasProcessing=S.skills.some(s=>s.name==="Обработка алхимических ингредиентов");
+  const hasBaseReaction=S.skills.some(s=>s.name==="Базовая алхимическая реакция");
+  const hasCircle=S.skills.some(s=>s.name==="Алхимический круг");
+  const lockedMsg=(skill)=>'<div style="color:#7a6a52;font-size:.78rem;padding:8px 0">🔒 Доступно при наличии навыка «'+skill+'»</div>';
+
   return invHeader
-    +alchSect("proc","Рецепты обработки",procInner)
-    +alchSect("recipes","Алхимические рецепты",alchInner)
-    +alchSect("circle","Алхимический круг",circleInner)
+    +alchSect("proc","Рецепты обработки", hasProcessing?procInner:lockedMsg("Обработка алхимических ингредиентов"))
+    +alchSect("recipes","Базовая алхимическая реакция", hasBaseReaction?alchInner:lockedMsg("Базовая алхимическая реакция"))
+    +alchSect("circle","Алхимический круг", hasCircle?circleInner:lockedMsg("Алхимический круг"))
     +alchSect("base","База предметов",baseInner)
     +histCard;
 }
@@ -1425,24 +1451,48 @@ function saveAlchRecipe(type){
 // ── QUESTS & NPC ──
 function rQNPC(){
   var active=S.quests.filter(function(q){return !q.done;}),done=S.quests.filter(function(q){return q.done;});
+  function taskListHtml(q){
+    var tasks=q.tasks||[];
+    if(!tasks.length) return '';
+    return tasks.map(function(t){
+      return '<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0 5px 12px;border-top:1px solid #1a1510">'
+        +'<div style="flex:1;min-width:0">'
+        +'<span style="font-size:.78rem;'+(t.done?'text-decoration:line-through;color:#5a4a35':'color:#e8dcc8')+'">'+(t.done?'✓ ':'')+t.name+'</span>'
+        +(t.description?'<div style="font-size:.68rem;color:#7a6a52;margin-top:1px">'+t.description+'</div>':"")
+        +'</div>'
+        +'<div class="row" style="flex-shrink:0">'
+        +(t.done
+          ?'<button class="btn" style="padding:2px 7px;font-size:.62rem" onclick="toggleTask('+q.id+','+t.id+')">↩</button>'
+          :'<button class="btn" style="padding:2px 7px;font-size:.62rem;color:#27ae60;border-color:#27ae60" onclick="toggleTask('+q.id+','+t.id+')">✓</button>'
+        )
+        +'<button class="btn" style="padding:2px 7px;font-size:.62rem" onclick="oEditTask('+q.id+','+t.id+')">✏</button>'
+        +'</div></div>';
+    }).join("");
+  }
   var activeHtml=active.map(function(q){
+    var tasks=q.tasks||[];
+    var doneCount=tasks.filter(function(t){return t.done;}).length;
     return '<div class="quest-item">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
-      +'<div style="flex:1"><div style="font-weight:bold;font-size:.82rem">'+q.name+'</div>'
+      +'<div style="flex:1;min-width:0"><div style="font-weight:bold;font-size:.88rem;color:#c9a84c">'+q.name+'</div>'
       +(q.description?'<div style="font-size:.72rem;color:#7a6a52;margin-top:3px">'+q.description+'</div>':"")
-      +'</div><div class="row">'
-      +'<button class="btn" style="padding:3px 8px;font-size:.66rem;color:#27ae60;border-color:#27ae60" onclick="S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:true}):x;});render()">ok</button>'
-      +'<button class="bdng" onclick="S.quests=S.quests.filter(function(x){return x.id!=='+q.id+';});render()">x</button>'
-      +'</div></div></div>';
+      +(tasks.length?'<div style="font-size:.65rem;color:#5a4a35;margin-top:3px">Пункты: '+doneCount+'/'+tasks.length+'</div>':"")
+      +'</div>'
+      +'<div class="row" style="flex-shrink:0">'
+      +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="oEditQuest('+q.id+')">✏</button>'
+      +'<button class="btn" style="padding:3px 8px;font-size:.66rem;color:#27ae60;border-color:#27ae60" onclick="S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:true}):x;});render()">✓</button>'
+      +'</div></div>'
+      +(tasks.length?'<div style="margin-top:4px">'+taskListHtml(q)+'</div>':"")
+      +'<button class="btn" style="width:100%;margin-top:6px;font-size:.68rem" onclick="oAddTask('+q.id+')">+ Пункт</button>'
+      +'</div>';
   }).join("");
   var doneHtml=done.map(function(q){
     return '<div class="quest-item quest-done">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
-      +'<div style="flex:1"><div style="font-weight:bold;font-size:.82rem;text-decoration:line-through">'+q.name+'</div>'
-      +(q.description?'<div style="font-size:.72rem;color:#7a6a52;margin-top:3px">'+q.description+'</div>':"")
-      +'</div><div class="row">'
-      +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:false}):x;});render()">&lt;</button>'
-      +'<button class="bdng" onclick="S.quests=S.quests.filter(function(x){return x.id!=='+q.id+';});render()">x</button>'
+      +'<div style="flex:1"><div style="font-weight:bold;font-size:.82rem;text-decoration:line-through;color:#5a4a35">'+q.name+'</div></div>'
+      +'<div class="row">'
+      +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:false}):x;});render()">↩</button>'
+      +'<button class="bdng" onclick="S.quests=S.quests.filter(function(x){return x.id!=='+q.id+';});render()">✕</button>'
       +'</div></div></div>';
   }).join("");
   var npcHtml=S.npcs.map(function(n){
@@ -1452,7 +1502,7 @@ function rQNPC(){
       +(n.notes?'<div style="font-size:.72rem;color:#7a6a52;margin-top:4px">'+n.notes+'</div>':"")
       +'</div><div class="row">'
       +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="oEditNPC('+n.id+')">Изм.</button>'
-      +'<button class="bdng" onclick="S.npcs=S.npcs.filter(function(x){return x.id!=='+n.id+';});render()">x</button>'
+      +'<button class="bdng" onclick="S.npcs=S.npcs.filter(function(x){return x.id!=='+n.id+';});render()">✕</button>'
       +'</div></div></div>';
   }).join("");
   return '<div class="card">'
@@ -1460,9 +1510,9 @@ function rQNPC(){
     +'<div class="stitle" style="margin-bottom:0">Квесты и задачи<div class="sline"></div></div>'
     +'<button class="btn" onclick="oAddQuest()">+ Квест</button></div>'
     +'<div style="font-size:.65rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:8px;cursor:pointer" onclick="questsOpenActive=!questsOpenActive;render()">АКТИВНЫЕ ('+active.length+') '+(questsOpenActive?"▲":"▼")+'</div>'
-    +(questsOpenActive?activeHtml:"")
+    +(questsOpenActive?activeHtml:'')
     +'<div style="font-size:.65rem;color:#7a6a52;letter-spacing:.1em;margin-top:10px;margin-bottom:8px;cursor:pointer" onclick="questsOpenDone=!questsOpenDone;render()">ВЫПОЛНЕНЫ ('+done.length+') '+(questsOpenDone?"▲":"▼")+'</div>'
-    +(questsOpenDone?doneHtml:"")
+    +(questsOpenDone?doneHtml:'')
     +'</div>'
     +'<div class="card">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
@@ -1485,9 +1535,15 @@ function render(){
     slotEl.style.display = (slots.length > 1) ? "" : "none";
   }
 
+  var hasAlch=S.professions.some(function(p){return p.knowledgeArea==="Алхимия";});
+  var hasMagic=S.professions.some(function(p){return p.knowledgeArea==="Магия";});
+  var tbs=[["char","Персонаж"],["professions","Профессии"],["skills","Навыки"],["inventory","Инвентарь"]];
+  if(hasAlch) tbs.push(["alchemy","Алхимия"]);
+  if(hasMagic) tbs.push(["magic","Магия"]);
+  tbs.push(["qnpc","Квесты / НПС"]);
+  if(!tbs.find(function(tb){return tb[0]===tab;})) tab="char";
   var map={char:rChar,professions:rProf,skills:rSkills,inventory:rInv,alchemy:rAlch,magic:function(){return rPh("🔮","СИСТЕМА МАГИИ");},qnpc:rQNPC};
   document.getElementById("cnt").innerHTML=(map[tab]||rChar)();
-  var tbs=[["char","Персонаж"],["professions","Профессии"],["skills","Навыки"],["inventory","Инвентарь"],["alchemy","Алхимия"],["magic","Магия"],["qnpc","Квесты / НПС"]];
   var tabButtons=[];
   tbs.forEach(function(tb){var k=tb[0],l=tb[1];tabButtons.push('<button class="tbtn'+(tab===k?' on':'')+'" onclick="setTab(\x27'+k+'\x27)">'+l+'</button>');});
   document.getElementById("tabs").innerHTML=tabButtons.join("");
@@ -1505,29 +1561,111 @@ function oAddSk(){
   var srcOpts=Object.values(AT).concat(S.professions.map(function(p){return p.name;})).concat(["Другое"]);
   openMod('<div class="mtitle">Новый навык</div>'
     +'<label class="fl">Название</label><input class="inp" id="sk_n">'
+    +'<label class="fl">Уровень навыка</label><input class="inp" type="number" id="sk_lv" value="1" min="1">'
     +'<label class="fl">Источник</label><select class="inp" id="sk_src">'+srcOpts.map(function(o){return '<option>'+o+'</option>';}).join("")+'</select>'
     +'<label class="fl">Тип</label><select class="inp" id="sk_t"><option value="passive">Пассивный</option><option value="active">Активный</option></select>'
     +'<label class="fl">Описание</label><textarea class="inp" id="sk_d"></textarea>'
     +'<label class="fl">Свойство</label><input class="inp" id="sk_prop">'
     +'<label class="fl">Комментарий</label><input class="inp" id="sk_com">'
     +'<label class="fl">Бонус к (необязательно)</label>'
-    +'<select class="inp" id="sk_bt" onchange="document.getElementById(&quot;sk_bvw&quot;).style.display=this.value?&quot;block&quot;:&quot;none&quot;"><option value="">— нет —</option>'+BT.map(function(x){return '<option>'+x+'</option>';}).join("")+'</select>'
+    +'<select class="inp" id="sk_bt" onchange="document.getElementById(\'sk_bvw\').style.display=this.value?\'block\':\'none\'"><option value="">— нет —</option>'+BT.map(function(x){return '<option>'+x+'</option>';}).join("")+'</select>'
     +'<div id="sk_bvw" style="display:none"><label class="fl">Значение бонуса</label><input class="inp" type="number" id="sk_bv" value="0"></div>'
     +'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sSk()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
 }
 function sSk(){
   var n=document.getElementById("sk_n").value.trim();if(!n)return;
   var bt=document.getElementById("sk_bt").value;
-  S.skills.push({id:Date.now(),name:n,source:document.getElementById("sk_src").value,type:document.getElementById("sk_t").value,
+  S.skills.push({id:Date.now(),name:n,level:+document.getElementById("sk_lv").value||1,source:document.getElementById("sk_src").value,type:document.getElementById("sk_t").value,
     description:document.getElementById("sk_d").value,property:document.getElementById("sk_prop").value,
     comment:document.getElementById("sk_com").value,bonusTarget:bt,bonusValue:bt?+document.getElementById("sk_bv").value:0});
   closeMod();ntf("Навык добавлен");render();
 }
+function oEditSk(id){
+  var s=S.skills.find(function(x){return x.id===id;});if(!s)return;
+  var srcOpts=Object.values(AT).concat(S.professions.map(function(p){return p.name;})).concat(["Другое"]);
+  openMod('<div class="mtitle">Редактировать навык</div>'
+    +'<label class="fl">Название</label><input class="inp" id="esk_n" value="'+s.name+'">'
+    +'<label class="fl">Уровень навыка</label><input class="inp" type="number" id="esk_lv" value="'+(s.level||1)+'" min="1">'
+    +'<label class="fl">Источник</label><select class="inp" id="esk_src">'+srcOpts.map(function(o){return '<option'+(o===s.source?' selected':'')+'>'+o+'</option>';}).join("")+'</select>'
+    +'<label class="fl">Тип</label><select class="inp" id="esk_t"><option value="passive"'+(s.type==="passive"?' selected':'')+'>Пассивный</option><option value="active"'+(s.type==="active"?' selected':'')+'>Активный</option></select>'
+    +'<label class="fl">Описание</label><textarea class="inp" id="esk_d">'+(s.description||'')+'</textarea>'
+    +'<label class="fl">Свойство</label><input class="inp" id="esk_prop" value="'+(s.property||'')+'">'
+    +'<label class="fl">Комментарий</label><input class="inp" id="esk_com" value="'+(s.comment||'')+'">'
+    +'<label class="fl">Бонус к</label>'
+    +'<select class="inp" id="esk_bt" onchange="document.getElementById(\'esk_bvw\').style.display=this.value?\'block\':\'none\'"><option value="">— нет —</option>'+BT.map(function(x){return '<option'+(x===s.bonusTarget?' selected':'')+'>'+x+'</option>';}).join("")+'</select>'
+    +'<div id="esk_bvw" style="display:'+(s.bonusTarget?'block':'none')+'"><label class="fl">Значение бонуса</label><input class="inp" type="number" id="esk_bv" value="'+(s.bonusValue||0)+'"></div>'
+    +'<div style="border-top:1px solid #242018;margin-top:14px;padding-top:12px">'
+    +'<button class="bdng" style="width:100%" onclick="oConfirmDeleteSk('+id+')">🗑 Удалить навык</button>'
+    +'</div>'
+    +'<div class="row" style="margin-top:12px"><button class="bpri" onclick="sEditSk('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
+}
+function sEditSk(id){
+  var bt=document.getElementById("esk_bt").value;
+  S.skills=S.skills.map(function(s){return s.id===id?Object.assign({},s,{name:document.getElementById("esk_n").value.trim()||s.name,level:+document.getElementById("esk_lv").value||1,source:document.getElementById("esk_src").value,type:document.getElementById("esk_t").value,description:document.getElementById("esk_d").value,property:document.getElementById("esk_prop").value,comment:document.getElementById("esk_com").value,bonusTarget:bt,bonusValue:bt?+document.getElementById("esk_bv").value:0}):s;});
+  closeMod();ntf("Навык обновлён");render();
+}
+function oConfirmDeleteSk(id){
+  var s=S.skills.find(function(x){return x.id===id;});if(!s)return;
+  openMod('<div class="mtitle">Удалить навык?</div>'
+    +'<div style="font-size:.82rem;color:#e8dcc8;margin-bottom:16px">«'+s.name+'» будет удалён безвозвратно.</div>'
+    +'<div class="row"><button class="bdng" style="flex:1" onclick="S.skills=S.skills.filter(x=>x.id!=='+id+');closeMod();ntf(\'Навык удалён\');render()">Удалить</button><button class="btn" style="flex:1" onclick="oEditSk('+id+')">Отмена</button></div>');
+}
 
-function oAddPr(){openMod('<div class="mtitle">Новая профессия</div><label class="fl">Название</label><input class="inp" id="pr_n"><label class="fl">Уровень</label><input class="inp" type="number" id="pr_l" value="1"><label class="fl">Текущий опыт</label><input class="inp" type="number" id="pr_e" value="0"><label class="fl">Опыт до след. уровня</label><input class="inp" type="number" id="pr_en" value="30"><div class="row" style="margin-top:16px"><button class="bpri" onclick="sPr()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
-function sPr(){var n=document.getElementById("pr_n").value.trim();if(!n)return;S.professions.push({id:Date.now(),name:n,level:+document.getElementById("pr_l").value||1,exp:+document.getElementById("pr_e").value||0,expNext:+document.getElementById("pr_en").value||30});closeMod();ntf("Профессия добавлена");render();}
-function oEditProf(id){var p=S.professions.find(function(x){return x.id===id;});openMod('<div class="mtitle">Редактировать профессию</div><label class="fl">Уровень</label><input class="inp" type="number" id="ep_l" value="'+p.level+'"><label class="fl">Текущий опыт</label><input class="inp" type="number" id="ep_e" value="'+p.exp+'"><label class="fl">Опыт до след. уровня</label><input class="inp" type="number" id="ep_en" value="'+p.expNext+'"><div class="row" style="margin-top:16px"><button class="bpri" onclick="sEditProf('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
-function sEditProf(id){S.professions=S.professions.map(function(p){return p.id===id?Object.assign({},p,{level:+document.getElementById("ep_l").value||1,exp:+document.getElementById("ep_e").value||0,expNext:+document.getElementById("ep_en").value||30}):p;});closeMod();ntf("Профессия обновлена");render();}
+function oAddPr(){
+  openMod('<div class="mtitle">Новая профессия</div>'
+    +'<label class="fl">Системное название <span style="color:#e05050">*</span></label><input class="inp" id="pr_n" placeholder="напр. Алхимик">'
+    +'<div style="font-size:.68rem;color:#7a6a52;margin:-6px 0 8px">По этому названию строятся связи с навыками</div>'
+    +'<label class="fl">Уникальное название (для игрока)</label><input class="inp" id="pr_un" placeholder="необязательно">'
+    +'<label class="fl">Уровень</label><input class="inp" type="number" id="pr_l" value="1">'
+    +'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sPr()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
+}
+function sPr(){
+  var n=document.getElementById("pr_n").value.trim();if(!n)return;
+  S.professions.push({id:Date.now(),name:n,uniqueName:document.getElementById("pr_un").value.trim(),level:+document.getElementById("pr_l").value||1,exp:0,expNext:30,knowledgeArea:""});
+  closeMod();ntf("Профессия добавлена");render();
+}
+function oEditProf(id){
+  var p=S.professions.find(function(x){return x.id===id;});if(!p)return;
+  var KAREAS=["","Лечение","Алхимия","Магия","Бой"];
+  openMod('<div class="mtitle">Редактировать профессию</div>'
+    +'<label class="fl">Системное название</label><input class="inp" id="ep_n" value="'+p.name+'">'
+    +'<label class="fl">Уникальное название</label><input class="inp" id="ep_un" value="'+(p.uniqueName||'')+'">'
+    +'<label class="fl">Уровень</label><input class="inp" type="number" id="ep_l" value="'+p.level+'">'
+    +'<label class="fl">Область знаний</label>'
+    +'<select class="inp" id="ep_ka">'+KAREAS.map(function(k){return '<option value="'+k+'"'+(p.knowledgeArea===k?' selected':'')+'>'+(k||'— нет —')+'</option>';}).join("")+'</select>'
+    +'<div style="border-top:1px solid #242018;margin-top:16px;padding-top:12px">'
+    +'<button class="bdng" style="width:100%" onclick="oConfirmDeleteProf('+id+')">🗑 Удалить профессию</button>'
+    +'</div>'
+    +'<div class="row" style="margin-top:12px"><button class="bpri" onclick="sEditProf('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
+}
+function sEditProf(id){
+  var oldName=(S.professions.find(function(p){return p.id===id;})||{}).name||"";
+  var newName=document.getElementById("ep_n").value.trim()||oldName;
+  S.professions=S.professions.map(function(p){return p.id===id?Object.assign({},p,{name:newName,uniqueName:document.getElementById("ep_un").value.trim(),level:+document.getElementById("ep_l").value||1,knowledgeArea:document.getElementById("ep_ka").value}):p;});
+  if(newName!==oldName) S.skills=S.skills.map(function(s){return s.source===oldName?Object.assign({},s,{source:newName}):s;});
+  closeMod();ntf("Профессия обновлена");render();
+}
+function oConfirmDeleteProf(id){
+  var p=S.professions.find(function(x){return x.id===id;});if(!p)return;
+  var cnt=S.skills.filter(function(s){return s.source===p.name;}).length;
+  openMod('<div class="mtitle">Удалить профессию?</div>'
+    +'<div style="font-size:.82rem;color:#e8dcc8;margin-bottom:12px">«'+(p.uniqueName||p.name)+'» будет удалена.'+(cnt>0?' Также '+cnt+' навык(ов) переедут в раздел «Другое».':'')+'</div>'
+    +'<div class="row"><button class="bdng" style="flex:1" onclick="deleteProf('+id+')">Удалить</button><button class="btn" style="flex:1" onclick="oEditProf('+id+')">Отмена</button></div>');
+}
+function deleteProf(id){
+  var p=S.professions.find(function(x){return x.id===id;});
+  if(p) S.skills=S.skills.map(function(s){return s.source===p.name?Object.assign({},s,{source:"Другое"}):s;});
+  S.professions=S.professions.filter(function(x){return x.id!==id;});
+  closeMod();ntf("Профессия удалена");render();
+}
+function oSetKnowledge(id){
+  var KAREAS=["Лечение","Алхимия","Магия","Бой"];
+  openMod('<div class="mtitle">Область знаний</div>'
+    +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">'
+    +KAREAS.map(function(k){return '<button class="btn" style="text-align:left;padding:10px 14px;font-size:.85rem" onclick="S.professions=S.professions.map(x=>x.id==='+id+'?{...x,knowledgeArea:\''+k+'\'}:x);closeMod();render()">'+k+'</button>';}).join("")
+    +'</div>'
+    +'<button class="btn" style="width:100%" onclick="closeMod()">Отмена</button>');
+}
 
 function oAddAch(){openMod('<div class="mtitle">Новая ачивка</div><label class="fl">Название</label><input class="inp" id="ach_n"><label class="fl">Свойство</label><input class="inp" id="ach_p"><div class="row" style="margin-top:16px"><button class="bpri" onclick="sAch()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
 function sAch(){var n=document.getElementById("ach_n").value.trim();if(!n)return;S.achievements.push({id:Date.now(),name:n,property:document.getElementById("ach_p").value});closeMod();ntf("Ачивка добавлена");render();}
@@ -1572,8 +1710,78 @@ function oAddMiscSmart(){smartModal("Предмет","misc",'<label class="fl">�
 function sMisc(){var n=document.getElementById("mi_n").value.trim();if(!n)return;var item={id:Date.now(),name:n,property:document.getElementById("mi_p").value,comment:document.getElementById("mi_c").value,qty:1};S.misc.push(item);addToGlobalDB({name:n,type:"misc",property:item.property});closeMod();ntf("Добавлено");render();}
 function oAddAlch(){openMod('<div class="mtitle">Алхимический предмет</div><label class="fl">Название</label><input class="inp" id="al_n"><label class="fl">Уровень</label><input class="inp" type="number" id="al_l" value="1"><label class="fl">Атрибут</label><input class="inp" id="al_a" placeholder="напр. Огонь"><label class="fl">Свойство</label><input class="inp" id="al_p"><label class="fl">Комментарий</label><input class="inp" id="al_c"><div class="row" style="margin-top:16px"><button class="bpri" onclick="sAlch()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
 function sAlch(){var n=document.getElementById("al_n").value.trim();if(!n)return;S.alchItems.push({id:Date.now(),name:n,level:+document.getElementById("al_l").value||1,attribute:document.getElementById("al_a").value,property:document.getElementById("al_p").value,comment:document.getElementById("al_c").value,qty:1});closeMod();ntf("Предмет добавлен");render();}
-function oAddQuest(){openMod('<div class="mtitle">Новый квест</div><label class="fl">Название</label><input class="inp" id="q_n"><label class="fl">Описание</label><textarea class="inp" id="q_d"></textarea><div class="row" style="margin-top:16px"><button class="bpri" onclick="sQuest()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
-function sQuest(){var n=document.getElementById("q_n").value.trim();if(!n)return;S.quests.push({id:Date.now(),name:n,description:document.getElementById("q_d").value,done:false});closeMod();ntf("Квест добавлен");render();}
+function oAddQuest(){
+  openMod('<div class="mtitle">Новый квест</div>'
+    +'<label class="fl">Название</label><input class="inp" id="q_n">'
+    +'<label class="fl">Описание</label><textarea class="inp" id="q_d"></textarea>'
+    +'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sQuest()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
+}
+function sQuest(){
+  var n=document.getElementById("q_n").value.trim();if(!n)return;
+  S.quests.push({id:Date.now(),name:n,description:document.getElementById("q_d").value,done:false,tasks:[]});
+  closeMod();ntf("Квест добавлен");render();
+}
+function oEditQuest(id){
+  var q=S.quests.find(function(x){return x.id===id;});if(!q)return;
+  openMod('<div class="mtitle">Редактировать квест</div>'
+    +'<label class="fl">Название</label><input class="inp" id="eq_n" value="'+q.name+'">'
+    +'<label class="fl">Описание</label><textarea class="inp" id="eq_d">'+(q.description||'')+'</textarea>'
+    +'<div style="border-top:1px solid #242018;margin-top:14px;padding-top:12px">'
+    +'<button class="bdng" style="width:100%" onclick="S.quests=S.quests.filter(x=>x.id!=='+id+');closeMod();render()">🗑 Удалить квест</button>'
+    +'</div>'
+    +'<div class="row" style="margin-top:12px"><button class="bpri" onclick="sEditQuest('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
+}
+function sEditQuest(id){
+  S.quests=S.quests.map(function(q){return q.id===id?Object.assign({},q,{name:document.getElementById("eq_n").value.trim()||q.name,description:document.getElementById("eq_d").value}):q;});
+  closeMod();ntf("Квест обновлён");render();
+}
+function oAddTask(qid){
+  openMod('<div class="mtitle">Новый пункт квеста</div>'
+    +'<label class="fl">Название</label><input class="inp" id="ta_n">'
+    +'<label class="fl">Описание</label><textarea class="inp" id="ta_d"></textarea>'
+    +'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sAddTask('+qid+')">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
+}
+function sAddTask(qid){
+  var n=document.getElementById("ta_n").value.trim();if(!n)return;
+  S.quests=S.quests.map(function(q){
+    if(q.id!==qid) return q;
+    var tasks=(q.tasks||[]).concat([{id:Date.now(),name:n,description:document.getElementById("ta_d").value,done:false}]);
+    return Object.assign({},q,{tasks:tasks});
+  });
+  closeMod();ntf("Пункт добавлен");render();
+}
+function toggleTask(qid,tid){
+  S.quests=S.quests.map(function(q){
+    if(q.id!==qid) return q;
+    return Object.assign({},q,{tasks:(q.tasks||[]).map(function(t){return t.id===tid?Object.assign({},t,{done:!t.done}):t;})});
+  });
+  render();
+}
+function oEditTask(qid,tid){
+  var q=S.quests.find(function(x){return x.id===qid;});if(!q)return;
+  var t=(q.tasks||[]).find(function(x){return x.id===tid;});if(!t)return;
+  openMod('<div class="mtitle">Редактировать пункт</div>'
+    +'<label class="fl">Название</label><input class="inp" id="eta_n" value="'+t.name+'">'
+    +'<label class="fl">Описание</label><textarea class="inp" id="eta_d">'+(t.description||'')+'</textarea>'
+    +'<div style="border-top:1px solid #242018;margin-top:14px;padding-top:12px">'
+    +'<button class="bdng" style="width:100%" onclick="deleteTask('+qid+','+tid+')">🗑 Удалить пункт</button>'
+    +'</div>'
+    +'<div class="row" style="margin-top:12px"><button class="bpri" onclick="sEditTask('+qid+','+tid+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
+}
+function sEditTask(qid,tid){
+  S.quests=S.quests.map(function(q){
+    if(q.id!==qid) return q;
+    return Object.assign({},q,{tasks:(q.tasks||[]).map(function(t){return t.id===tid?Object.assign({},t,{name:document.getElementById("eta_n").value.trim()||t.name,description:document.getElementById("eta_d").value}):t;})});
+  });
+  closeMod();ntf("Пункт обновлён");render();
+}
+function deleteTask(qid,tid){
+  S.quests=S.quests.map(function(q){
+    if(q.id!==qid) return q;
+    return Object.assign({},q,{tasks:(q.tasks||[]).filter(function(t){return t.id!==tid;})});
+  });
+  closeMod();render();
+}
 function oAddNPC(){openMod('<div class="mtitle">Новый НПС</div><label class="fl">Имя</label><input class="inp" id="npc_n"><label class="fl">Заметки</label><textarea class="inp" id="npc_d"></textarea><div class="row" style="margin-top:16px"><button class="bpri" onclick="sNPC()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
 function sNPC(){var n=document.getElementById("npc_n").value.trim();if(!n)return;S.npcs.push({id:Date.now(),name:n,notes:document.getElementById("npc_d").value});closeMod();ntf("НПС добавлен");render();}
 function oEditNPC(id){var n=S.npcs.find(function(x){return x.id===id;});openMod('<div class="mtitle">Редактировать НПС</div><label class="fl">Имя</label><input class="inp" id="en_n" value="'+n.name+'"><label class="fl">Заметки</label><textarea class="inp" id="en_d">'+n.notes+'</textarea><div class="row" style="margin-top:16px"><button class="bpri" onclick="sEditNPC('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
