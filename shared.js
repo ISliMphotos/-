@@ -34,7 +34,8 @@ let S={
   alchHistory:[],
   alchSuccessChance:100,
   notes:"",
-  hpLog:[]
+  hpLog:[],
+  goldLog:[]
 };
 
 // ── MULTI-CHAR SLOTS ───────────────────────────────────────────────────────────
@@ -52,7 +53,7 @@ function defaultChar() {
     accessories:[],alchItems:[],potions:[],misc:[],achievements:[],quests:[],
     npcs:[],globalItemDB:[],alchDB:[],alchInventory:[],procRecipes:[],
     alchRecipes:[],alchCircleRecipes:[],alchHistory:[],alchSuccessChance:100,
-    notes:"",hpLog:[]
+    notes:"",hpLog:[],goldLog:[]
   };
 }
 
@@ -555,16 +556,51 @@ function hcApply(t){
   renderHpLog();
   render();
 }
-const openGoldCalc=()=>{gcv="";document.getElementById("gcnum").textContent="0";document.getElementById("goldcalc").style.display="flex";};
+function renderGoldLog(){
+  const wrap=document.getElementById("goldLogWrap");
+  if(!wrap)return;
+  const log=S.goldLog||[];
+  if(log.length===0){wrap.innerHTML='';return;}
+  const rows=log.slice(0,30).map(e=>{
+    const td=new Date(e.t);
+    const ts=[td.getHours(),td.getMinutes(),td.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");
+    const col=e.delta>=0?"#c9a84c":"#e67e22";
+    const sign=e.delta>0?"+":"";
+    return `<div style="display:flex;align-items:center;gap:6px;padding:4px 0;border-bottom:1px solid #1a1510;font-size:.68rem">
+      <span style="color:#5a4a35;font-family:monospace;flex-shrink:0">${ts}</span>
+      <span style="color:${col};font-weight:bold;min-width:28px;flex-shrink:0">${sign}${e.delta}</span>
+      <span style="color:#7a6a52;flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${e.desc}</span>
+      <span style="color:#e8dcc8;flex-shrink:0">→${e.gold}</span>
+    </div>`;
+  }).join("");
+  wrap.innerHTML=`<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:6px">
+    <span style="font-size:.6rem;letter-spacing:.12em;color:#7a6a52;text-transform:uppercase">Лог изменений</span>
+    <button class="bdng" style="font-size:.6rem;padding:2px 7px" onclick="S.goldLog=[];renderGoldLog();render()">Очистить</button>
+  </div>${rows}`;
+}
+const openGoldCalc=()=>{gcv="";document.getElementById("gcnum").textContent="0";document.getElementById("goldcalc").style.display="flex";renderGoldLog();};
 const closeGoldCalc=()=>document.getElementById("goldcalc").style.display="none";
 function gcp(d){if(gcv.length>=8)return;gcv+=d;document.getElementById("gcnum").textContent=parseInt(gcv)||"0";}
 function gccl(){gcv="";document.getElementById("gcnum").textContent="0";}
 function gcdl(){gcv=gcv.slice(0,-1);document.getElementById("gcnum").textContent=gcv?parseInt(gcv):"0";}
 function gcApply(t){
   const v=parseInt(gcv)||0;if(v<=0)return;
-  if(t==="add"){S.gold+=v;ntf("+"+v+" золота","#c9a84c");}
-  else{S.gold=Math.max(0,S.gold-v);ntf("−"+v+" золота","#e67e22");}
-  closeGoldCalc();render();
+  let delta=0,desc="";
+  if(t==="add"){
+    S.gold+=v; delta=v; desc="Получено +"+v;
+    ntf("+"+v+" золота","#c9a84c");
+  } else {
+    const prev=S.gold;
+    S.gold=Math.max(0,S.gold-v);
+    delta=S.gold-prev; desc="Потрачено −"+v;
+    ntf("−"+v+" золота","#e67e22");
+  }
+  if(!S.goldLog)S.goldLog=[];
+  S.goldLog.unshift({t:Date.now(),delta,desc,gold:S.gold});
+  if(S.goldLog.length>50)S.goldLog=S.goldLog.slice(0,50);
+  gcv="";document.getElementById("gcnum").textContent="0";
+  renderGoldLog();
+  render();
 }
 
 // ── GLOBAL ITEM DB ────────────────────────────────────────────────────────────
@@ -1403,16 +1439,19 @@ function oConfirmDeleteSk(id){
 // ── PROFESSION MODALS ─────────────────────────────────────────────────────────
 
 function oAddPr(){
+  var KAREAS=["","Лечение","Алхимия","Магия","Бой"];
   openMod('<div class="mtitle">Новая профессия</div>'
     +'<label class="fl">Системное название <span style="color:#e05050">*</span></label><input class="inp" id="pr_n" placeholder="напр. Алхимик">'
     +'<div style="font-size:.68rem;color:#7a6a52;margin:-6px 0 8px">По этому названию строятся связи с навыками</div>'
     +'<label class="fl">Уникальное название (для игрока)</label><input class="inp" id="pr_un" placeholder="необязательно">'
     +'<label class="fl">Уровень</label><input class="inp" type="number" id="pr_l" value="1">'
+    +'<label class="fl">Область знаний</label>'
+    +'<select class="inp" id="pr_ka">'+KAREAS.map(function(k){return '<option value="'+k+'">'+(k||'— нет —')+'</option>';}).join("")+'</select>'
     +'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sPr()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
 }
 function sPr(){
   var n=document.getElementById("pr_n").value.trim();if(!n)return;
-  S.professions.push({id:Date.now(),name:n,uniqueName:document.getElementById("pr_un").value.trim(),level:+document.getElementById("pr_l").value||1,exp:0,expNext:30,knowledgeArea:""});
+  S.professions.push({id:Date.now(),name:n,uniqueName:document.getElementById("pr_un").value.trim(),level:+document.getElementById("pr_l").value||1,exp:0,expNext:30,knowledgeArea:document.getElementById("pr_ka").value});
   closeMod();ntf("Профессия добавлена");render();
 }
 function oEditProf(id){
