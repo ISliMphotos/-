@@ -480,6 +480,7 @@ let alchSectOpen={proc:true,recipes:true,circle:true,base:true,hist:true};
 let alchReagentCount=2,alchCircleReagentCount=2;
 let alchBaseSortCol="name",alchBaseSortDir=1,alchBaseSearch="";
 let alchBaseGroupBy="",alchInvGroupBy="",alchInvSortBy="name",alchInvSortDir=1;
+let alchInvGroupVisible=false,alchBaseGroupVisible=false;
 let hcv="",gcv="";
 let notesOpen=false;
 
@@ -1040,13 +1041,49 @@ function alchSortedFiltered(){
   return Object.entries(map).map(([groupKey,items])=>({groupKey,items})).sort((a,b)=>alchBaseGroupBy==="level"?Number(a.groupKey)-Number(b.groupKey):a.groupKey.localeCompare(b.groupKey,"ru"));
 }
 
-function alchSect(key,title,inner){
+function setAlchInvSort(col){
+  if(alchInvSortBy===col)alchInvSortDir=-alchInvSortDir;
+  else{alchInvSortBy=col;alchInvSortDir=1;}
+  render();
+}
+function setAlchBaseSort(col){
+  if(alchBaseSortCol===col)alchBaseSortDir=-alchBaseSortDir;
+  else{alchBaseSortCol=col;alchBaseSortDir=1;}
+  render();
+}
+function sa(col,cur,dir){return cur===col?(dir>0?' ▲':' ▼'):'';}
+
+function oSetAlchChance(){
+  openMod('<div class="mtitle">Шанс обработки</div>'
+    +'<div style="font-size:.75rem;color:#7a6a52;margin-bottom:12px">Вероятность успешной обработки и синтеза (1–100%)</div>'
+    +'<label class="fl">Шанс (%)</label>'
+    +'<input class="inp" type="number" id="alch_chance_inp" min="1" max="100" value="'+S.alchSuccessChance+'">'
+    +'<div class="row" style="margin-top:16px">'
+    +'<button class="bpri" style="flex:1" onclick="S.alchSuccessChance=Math.min(100,Math.max(1,+document.getElementById(\'alch_chance_inp\').value));closeMod();render()">Сохранить</button>'
+    +'<button class="btn" onclick="closeMod()">Отмена</button>'
+    +'</div>');
+}
+function oAddAlchDB(){
+  openMod('<div class="mtitle">Добавить предмет в базу</div>'
+    +'<label class="fl">Название</label><input class="inp" id="alchDbName" placeholder="Название">'
+    +'<label class="fl">Уровень</label><input class="inp" type="number" id="alchDbLevel" value="1" min="1">'
+    +'<label class="fl">Атрибут</label><input class="inp" id="alchDbAttr" placeholder="напр. Огонь">'
+    +'<div class="row" style="margin-top:16px">'
+    +'<button class="bpri" style="flex:1" onclick="alchAddToDB()">Добавить</button>'
+    +'<button class="btn" onclick="closeMod()">Отмена</button>'
+    +'</div>');
+}
+
+function alchSect(key,title,inner,extraHdr){
   const open=alchSectOpen[key];
-  return '<div class="card">'
-    +'<div class="alch-sect-hdr" onclick="alchSectOpen.'+key+'=!alchSectOpen.'+key+';render()">'
-    +'<div class="stitle" style="margin-bottom:0">'+title+'<div class="sline"></div></div>'
-    +'<span style="color:#c9a84c">'+(open?"▲":"▼")+'</span></div>'
-    +(open?inner:"")
+  return '<div style="margin-bottom:4px">'
+    +'<div class="inv-sec-hdr" onclick="alchSectOpen.'+key+'=!alchSectOpen.'+key+';render()" style="cursor:pointer">'
+    +'<span class="inv-sec-title">'+title+'</span>'
+    +'<div class="row" style="gap:6px" onclick="event.stopPropagation()">'
+    +(extraHdr||'')
+    +'<span style="color:#c9a84c;font-size:.8rem;cursor:pointer" onclick="alchSectOpen.'+key+'=!alchSectOpen.'+key+';render()">'+(open?"▲":"▼")+'</span>'
+    +'</div></div>'
+    +(open?'<div style="margin-bottom:8px">'+inner+'</div>':"")
     +'</div>';
 }
 
@@ -1127,7 +1164,7 @@ function rAlch(){
   for(let i=0;i<alchReagentCount;i++)reagSelects+='<select class="inp" style="width:auto;margin-bottom:4px" id="alchReag_'+i+'">'+dbOpts+'</select> ';
   for(let i=0;i<alchCircleReagentCount;i++)circleSelects+='<select class="inp" style="width:auto;margin-bottom:4px" id="alchCircReag_'+i+'">'+dbOpts+'</select> ';
 
-  const histColors={add:"#27ae60",update:"#7ec8e3",del:"#e05050",success:"#27ae60",error:"#e05050",synth:"#9b59b6",recipe:"#c9a84c"};
+  const histColors={add:"#27ae60",update:"#7ec8e3",del:"#e67e22",success:"#27ae60",error:"#e05050",synth:"#9b59b6",recipe:"#c9a84c"};
   const histHtml=S.alchHistory.length===0
     ?'<div style="color:#7a6a52;font-size:.78rem;padding:6px">Нет событий</div>'
     :S.alchHistory.slice(0,80).map(e=>'<div style="font-size:.72rem;padding:3px 0;border-bottom:1px solid #1a1510;color:'+(histColors[e.type]||"#7a6a52")+'">'
@@ -1136,30 +1173,37 @@ function rAlch(){
       +(e.extra?' <span style="color:#7a6a52">'+e.extra+'</span>':"")
       +'</div>').join("");
 
-  const invHeader='<div class="card">'
-    +'<div class="stitle">Инвентарь алхимика<div class="sline"></div></div>'
-    +'<div style="display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:12px">'
-    +'<span style="font-size:.68rem;color:#7a6a52">Шанс обработки:</span>'
-    +'<input class="inp" type="number" min="1" max="100" value="'+S.alchSuccessChance+'" style="width:54px" onchange="S.alchSuccessChance=Math.min(100,Math.max(1,+this.value))">'
-    +'<span style="font-size:.68rem;color:#7a6a52">%</span>'
-    +'<span style="font-size:.68rem;color:#7a6a52">Группировка:</span>'
-    +'<select class="inp" style="width:auto" onchange="alchInvGroupBy=this.value;render()">'
-    +'<option value="">(нет)</option>'
-    +'<option value="level"'+(alchInvGroupBy==="level"?" selected":"")+'>Уровень</option>'
-    +'<option value="attribute"'+(alchInvGroupBy==="attribute"?" selected":"")+'>Атрибут</option>'
-    +'</select>'
-    +'<span style="font-size:.68rem;color:#7a6a52">Сортировка:</span>'
-    +'<select class="inp" style="width:auto" onchange="alchInvSortBy=this.value;render()">'
-    +'<option value="name">Название</option><option value="level">Уровень</option><option value="attribute">Атрибут</option><option value="qty">Кол-во</option>'
-    +'</select>'
-    +'<button class="btn" style="padding:3px 7px" onclick="alchInvSortDir=-alchInvSortDir;render()">'+(alchInvSortDir>0?"▲":"▼")+'</button>'
-    +'</div>'
+  const thS='style="cursor:pointer;user-select:none"';
+  const thSC='style="cursor:pointer;user-select:none;text-align:center"';
+
+  const invCard='<div class="card">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
+    +'<span class="inv-sec-title">Инвентарь алхимика</span>'
+    +'<div class="row" style="gap:6px">'
+    +'<button class="bpri" style="font-size:.72rem;padding:4px 10px;border-radius:20px" onclick="oSetAlchChance()">🎲 '+S.alchSuccessChance+'%</button>'
+    +'<button class="btn" style="padding:4px 8px;font-size:.8rem" title="Группировка" onclick="alchInvGroupVisible=!alchInvGroupVisible;render()">⚙</button>'
+    +'</div></div>'
+    +(alchInvGroupVisible
+      ?'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:6px 8px;background:#0d0b09;border-radius:6px;border:1px solid #242018">'
+        +'<span style="font-size:.68rem;color:#7a6a52;flex-shrink:0">Группировка:</span>'
+        +'<select class="inp" style="width:auto" onchange="alchInvGroupBy=this.value;render()">'
+        +'<option value=""'+(alchInvGroupBy===""?" selected":"")+'>Нет</option>'
+        +'<option value="level"'+(alchInvGroupBy==="level"?" selected":"")+'>Уровень</option>'
+        +'<option value="attribute"'+(alchInvGroupBy==="attribute"?" selected":"")+'>Атрибут</option>'
+        +'</select></div>'
+      :"")
     +'<div style="overflow-x:auto"><table class="alch-tbl">'
-    +'<tr><th style="text-align:left">НАЗВАНИЕ</th><th>УР.</th><th>АТРИБУТ</th><th>КОЛ-ВО</th><th>ДЕЙСТВИЕ</th></tr>'
+    +'<tr>'
+    +'<th '+thS+' onclick="setAlchInvSort(\'name\')" style="cursor:pointer;user-select:none;text-align:left">НАЗВАНИЕ'+sa("name",alchInvSortBy,alchInvSortDir)+'</th>'
+    +'<th '+thSC+' onclick="setAlchInvSort(\'level\')">УР.'+sa("level",alchInvSortBy,alchInvSortDir)+'</th>'
+    +'<th '+thSC+' onclick="setAlchInvSort(\'attribute\')">АТРИБУТ'+sa("attribute",alchInvSortBy,alchInvSortDir)+'</th>'
+    +'<th '+thSC+' onclick="setAlchInvSort(\'qty\')">КОЛ-ВО'+sa("qty",alchInvSortBy,alchInvSortDir)+'</th>'
+    +'<th style="text-align:center">ДЕЙСТВИЕ</th>'
+    +'</tr>'
     +(invRows||'<tr><td colspan="5" style="color:#7a6a52;font-style:italic;padding:10px">Инвентарь пуст</td></tr>')
     +'</table></div></div>';
 
-  const procInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'
+  const procInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding:8px;background:#0d0b09;border-radius:6px;border:1px solid #1a1510">'
     +'<div><div class="fl">Исходник</div><select class="inp" id="procSrc" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
     +'<div><div class="fl">Результат</div><select class="inp" id="procRes" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
     +'<button class="btn" onclick="saveProcRecipe()">Сохранить</button></div>'
@@ -1167,66 +1211,73 @@ function rAlch(){
     +'<tr><th style="text-align:left">ИСХОДНИК</th><th style="text-align:left">РЕЗУЛЬТАТ</th><th></th></tr>'
     +procRows+'</table></div>';
 
-  const alchInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'
+  const alchInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding:8px;background:#0d0b09;border-radius:6px;border:1px solid #1a1510">'
     +'<div><div class="fl">Результат</div><select class="inp" id="alchResId" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
     +'<div><div class="fl">Реагенты ('+alchReagentCount+')</div><div style="display:flex;flex-wrap:wrap;gap:4px">'+reagSelects+'</div></div>'
-    +'<div class="row"><button class="btn" style="padding:3px 8px" onclick="if(alchReagentCount<6)alchReagentCount++;render()">+</button>'
-    +'<button class="btn" style="padding:3px 8px" onclick="if(alchReagentCount>2)alchReagentCount--;render()">−</button>'
+    +'<div class="row"><button class="btn" style="padding:3px 8px" onclick="if(alchReagentCount&lt;6)alchReagentCount++;render()">+</button>'
+    +'<button class="btn" style="padding:3px 8px" onclick="if(alchReagentCount&gt;2)alchReagentCount--;render()">−</button>'
     +'<button class="btn" onclick="saveAlchRecipe(\'normal\')">Сохранить</button></div></div>'
     +'<div style="overflow-x:auto"><table class="alch-tbl">'
     +'<tr><th style="text-align:left">РЕЗУЛЬТАТ</th><th style="text-align:left">РЕАГЕНТЫ</th><th>В ИНВ.</th><th></th></tr>'
     +recipeRows(S.alchRecipes,"S.alchRecipes")+'</table></div>';
 
-  const circleInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'
+  const circleInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding:8px;background:#0d0b09;border-radius:6px;border:1px solid #1a1510">'
     +'<div><div class="fl">Результат</div><select class="inp" id="alchCircResId" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
     +'<div><div class="fl">Реагенты ('+alchCircleReagentCount+')</div><div style="display:flex;flex-wrap:wrap;gap:4px">'+circleSelects+'</div></div>'
-    +'<div class="row"><button class="btn" style="padding:3px 8px" onclick="if(alchCircleReagentCount<6)alchCircleReagentCount++;render()">+</button>'
-    +'<button class="btn" style="padding:3px 8px" onclick="if(alchCircleReagentCount>2)alchCircleReagentCount--;render()">−</button>'
+    +'<div class="row"><button class="btn" style="padding:3px 8px" onclick="if(alchCircleReagentCount&lt;6)alchCircleReagentCount++;render()">+</button>'
+    +'<button class="btn" style="padding:3px 8px" onclick="if(alchCircleReagentCount&gt;2)alchCircleReagentCount--;render()">−</button>'
     +'<button class="btn" onclick="saveAlchRecipe(\'circle\')">Сохранить</button></div></div>'
     +'<div style="overflow-x:auto"><table class="alch-tbl">'
     +'<tr><th style="text-align:left">РЕЗУЛЬТАТ</th><th style="text-align:left">РЕАГЕНТЫ</th><th>В ИНВ.</th><th></th></tr>'
     +recipeRows(S.alchCircleRecipes,"S.alchCircleRecipes")+'</table></div>';
 
-  const baseInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px">'
-    +'<div><div class="fl">Название</div><input class="inp" id="alchDbName" style="width:120px" placeholder="Название"></div>'
-    +'<div><div class="fl">Уровень</div><input class="inp" type="number" id="alchDbLevel" style="width:54px" value="1" min="1"></div>'
-    +'<div><div class="fl">Атрибут</div><input class="inp" id="alchDbAttr" style="width:100px" placeholder="напр. Огонь"></div>'
-    +'<button class="btn" onclick="alchAddToDB()">Добавить в базу</button></div>'
-    +'<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:center;margin-bottom:8px">'
-    +'<input class="inp" placeholder="Поиск..." style="width:140px" oninput="alchBaseSearch=this.value;render()" value="'+alchBaseSearch+'">'
-    +'<span style="font-size:.68rem;color:#7a6a52">Группировка:</span>'
-    +'<select class="inp" style="width:auto" onchange="alchBaseGroupBy=this.value;render()">'
-    +'<option value="">(нет)</option><option value="level"'+(alchBaseGroupBy==="level"?" selected":"")+'>Уровень</option>'
-    +'<option value="attribute"'+(alchBaseGroupBy==="attribute"?" selected":"")+'>Атрибут</option></select>'
-    +'<span style="font-size:.68rem;color:#7a6a52">Сортировка:</span>'
-    +'<select class="inp" style="width:auto" onchange="alchBaseSortCol=this.value;render()">'
-    +'<option value="name">Название</option><option value="level">Уровень</option><option value="attribute">Атрибут</option></select>'
-    +'<button class="btn" style="padding:3px 7px" onclick="alchBaseSortDir=-alchBaseSortDir;render()">'+(alchBaseSortDir>0?"▲":"▼")+'</button></div>'
+  const baseSearch='<input class="inp" placeholder="Поиск..." style="width:110px" oninput="alchBaseSearch=this.value;render()" value="'+alchBaseSearch+'">';
+  const baseExtraHdr=baseSearch
+    +'<button class="btn" style="padding:3px 8px;font-size:.72rem" onclick="oAddAlchDB()">+ Добавить</button>'
+    +'<button class="btn" style="padding:4px 8px;font-size:.8rem" title="Группировка" onclick="alchBaseGroupVisible=!alchBaseGroupVisible;render()">⚙</button>';
+
+  const baseGroupRow=alchBaseGroupVisible
+    ?'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:6px 8px;background:#0d0b09;border-radius:6px;border:1px solid #1a1510">'
+      +'<span style="font-size:.68rem;color:#7a6a52;flex-shrink:0">Группировка:</span>'
+      +'<select class="inp" style="width:auto" onchange="alchBaseGroupBy=this.value;render()">'
+      +'<option value=""'+(alchBaseGroupBy===""?" selected":"")+'>Нет</option>'
+      +'<option value="level"'+(alchBaseGroupBy==="level"?" selected":"")+'>Уровень</option>'
+      +'<option value="attribute"'+(alchBaseGroupBy==="attribute"?" selected":"")+'>Атрибут</option>'
+      +'</select></div>'
+    :"";
+
+  const baseInner=baseGroupRow
     +'<div style="overflow-x:auto"><table class="alch-tbl">'
-    +'<tr><th style="text-align:left">НАЗВАНИЕ</th><th>УР.</th><th>АТРИБУТ</th><th>В ИНВ.</th><th></th></tr>'
+    +'<tr>'
+    +'<th '+thS+' onclick="setAlchBaseSort(\'name\')" style="cursor:pointer;user-select:none;text-align:left">НАЗВАНИЕ'+sa("name",alchBaseSortCol,alchBaseSortDir)+'</th>'
+    +'<th '+thSC+' onclick="setAlchBaseSort(\'level\')">УР.'+sa("level",alchBaseSortCol,alchBaseSortDir)+'</th>'
+    +'<th '+thSC+' onclick="setAlchBaseSort(\'attribute\')">АТРИБУТ'+sa("attribute",alchBaseSortCol,alchBaseSortDir)+'</th>'
+    +'<th style="text-align:center">В ИНВ.</th>'
+    +'<th></th>'
+    +'</tr>'
     +baseRows+'</table></div>';
 
   const histInner='<div style="max-height:200px;overflow-y:auto;background:#0a0908;border:1px solid #242018;border-radius:6px;padding:8px">'+histHtml+'</div>';
-  const histCard='<div class="card">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:'+(alchSectOpen.hist?"8":"0")+'px">'
-    +'<div class="stitle" style="margin-bottom:0">История<div class="sline"></div></div>'
-    +'<div class="row">'
-    +'<button class="btn" style="padding:3px 8px;font-size:.68rem" onclick="alchSectOpen.hist=!alchSectOpen.hist;render()">'+(alchSectOpen.hist?"Скрыть":"Показать")+'</button>'
-    +'<button class="bdng" onclick="S.alchHistory=[];render()">Очистить</button>'
+  const histCard='<div style="margin-bottom:4px">'
+    +'<div class="inv-sec-hdr" onclick="alchSectOpen.hist=!alchSectOpen.hist;render()" style="cursor:pointer">'
+    +'<span class="inv-sec-title">История</span>'
+    +'<div class="row" style="gap:6px" onclick="event.stopPropagation()">'
+    +'<button class="bdng" style="padding:2px 7px;font-size:.68rem" onclick="S.alchHistory=[];render()">Очистить</button>'
+    +'<span style="color:#c9a84c;font-size:.8rem;cursor:pointer" onclick="alchSectOpen.hist=!alchSectOpen.hist;render()">'+(alchSectOpen.hist?"▲":"▼")+'</span>'
     +'</div></div>'
-    +(alchSectOpen.hist?histInner:"")
+    +(alchSectOpen.hist?'<div style="margin-bottom:8px">'+histInner+'</div>':"")
     +'</div>';
 
   const hasProcessing=S.skills.some(s=>s.name==="Обработка алхимических ингредиентов");
   const hasBaseReaction=S.skills.some(s=>s.name==="Базовая алхимическая реакция");
   const hasCircle=S.skills.some(s=>s.name==="Алхимический круг");
-  const lockedMsg=(skill)=>'<div style="color:#7a6a52;font-size:.78rem;padding:8px 0">🔒 Доступно при наличии навыка «'+skill+'»</div>';
+  const lockedMsg=(skill)=>'<div style="color:#7a6a52;font-size:.78rem;padding:8px">🔒 Доступно при наличии навыка «'+skill+'»</div>';
 
-  return invHeader
-    +alchSect("proc","Рецепты обработки", hasProcessing?procInner:lockedMsg("Обработка алхимических ингредиентов"))
-    +alchSect("recipes","Базовая алхимическая реакция", hasBaseReaction?alchInner:lockedMsg("Базовая алхимическая реакция"))
-    +alchSect("circle","Алхимический круг", hasCircle?circleInner:lockedMsg("Алхимический круг"))
-    +alchSect("base","База предметов",baseInner)
+  return invCard
+    +alchSect("proc","Рецепты обработки",hasProcessing?procInner:lockedMsg("Обработка алхимических ингредиентов"))
+    +alchSect("recipes","Базовая алхимическая реакция",hasBaseReaction?alchInner:lockedMsg("Базовая алхимическая реакция"))
+    +alchSect("circle","Алхимический круг",hasCircle?circleInner:lockedMsg("Алхимический круг"))
+    +alchSect("base","База предметов",baseInner,baseExtraHdr)
     +histCard;
 }
 
@@ -1238,7 +1289,7 @@ function alchAddToDB(){
   if(S.alchDB.find(x=>x.name===name&&x.level===level&&x.attribute===attribute)){ntf("Уже есть в базе","#e67e22");return;}
   S.alchDB.push({id:"a"+Date.now(),name,level,attribute});
   alchLog("add","Добавлено в базу",name+" [ур."+level+", "+attribute+"]");
-  ntf("Добавлено: "+name);render();
+  closeMod();ntf("Добавлено: "+name);render();
 }
 function alchDelFromDB(id){
   const it=alchFind(id);if(!it)return;
