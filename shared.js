@@ -1345,23 +1345,25 @@ function rQNPC(){
     var tasks=q.tasks||[];
     var doneCount=tasks.filter(function(t){return t.done;}).length;
     var tasksOpen=questTasksOpen[q.id]!==false;
+    var toggle='questTasksOpen['+q.id+']='+(!tasksOpen)+';render()';
     return '<div class="quest-item">'
       +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
-      +'<div style="flex:1;min-width:0"><div style="font-weight:bold;font-size:.88rem;color:#c9a84c">'+q.name+'</div>'
+      +'<div style="flex:1;min-width:0;cursor:pointer" onclick="'+toggle+'">'
+      +'<div style="display:flex;align-items:center;gap:6px">'
+      +'<span style="font-weight:bold;font-size:.88rem;color:#c9a84c">'+q.name+'</span>'
+      +(tasks.length?'<span style="font-size:.65rem;color:#5a4a35">'+doneCount+'/'+tasks.length+'</span>'
+        +'<span style="color:#c9a84c;font-size:.7rem">'+(tasksOpen?"▲":"▼")+'</span>':"")
+      +'</div>'
       +(q.description?'<div style="font-size:.72rem;color:#7a6a52;margin-top:3px">'+q.description+'</div>':"")
-      +(tasks.length
-        ?'<div style="font-size:.65rem;color:#5a4a35;margin-top:4px;cursor:pointer;display:inline-flex;align-items:center;gap:5px" onclick="questTasksOpen['+q.id+']='+(!tasksOpen)+';render()">'
-          +'Пункты: '+doneCount+'/'+tasks.length
-          +' <span style="color:#c9a84c;font-size:.7rem">'+(tasksOpen?"▲":"▼")+'</span>'
-          +'</div>'
-        :"")
       +'</div>'
       +'<div class="row" style="flex-shrink:0">'
-      +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="oEditQuest('+q.id+')">✏</button>'
-      +'<button class="btn" style="padding:3px 8px;font-size:.66rem;color:#27ae60;border-color:#27ae60" onclick="S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:true}):x;});render()">✓</button>'
+      +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="event.stopPropagation();oEditQuest('+q.id+')">✏</button>'
+      +'<button class="btn" style="padding:3px 8px;font-size:.66rem;color:#27ae60;border-color:#27ae60" onclick="event.stopPropagation();S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:true}):x;});render()">✓</button>'
       +'</div></div>'
-      +(tasks.length&&tasksOpen?'<div style="margin-top:4px">'+taskListHtml(q)+'</div>':"")
-      +'<button class="btn" style="width:100%;margin-top:6px;font-size:.68rem" onclick="oAddTask('+q.id+')">+ Пункт</button>'
+      +(tasksOpen
+        ?(tasks.length?'<div style="margin-top:4px">'+taskListHtml(q)+'</div>':"")
+        +'<button class="btn" style="width:100%;margin-top:6px;font-size:.68rem" onclick="oAddTask('+q.id+')">+ Пункт</button>'
+        :"")
       +'</div>';
   }).join("");
   var doneHtml=done.map(function(q){
