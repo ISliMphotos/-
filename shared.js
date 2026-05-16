@@ -1382,7 +1382,6 @@ function rQNPC(){
       +(n.notes?'<div style="font-size:.72rem;color:#7a6a52;margin-top:4px">'+n.notes+'</div>':"")
       +'</div><div class="row">'
       +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="oEditNPC('+n.id+')">Изм.</button>'
-      +'<button class="bdng" onclick="S.npcs=S.npcs.filter(function(x){return x.id!=='+n.id+';});render()">✕</button>'
       +'</div></div></div>';
   }).join("");
   return '<div class="card">'
@@ -1684,5 +1683,6 @@ function deleteTask(qid,tid){
 
 function oAddNPC(){openMod('<div class="mtitle">Новый НПС</div><label class="fl">Имя</label><input class="inp" id="npc_n"><label class="fl">Заметки</label><textarea class="inp" id="npc_d"></textarea><div class="row" style="margin-top:16px"><button class="bpri" onclick="sNPC()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
 function sNPC(){var n=document.getElementById("npc_n").value.trim();if(!n)return;S.npcs.push({id:Date.now(),name:n,notes:document.getElementById("npc_d").value});closeMod();ntf("НПС добавлен");render();}
-function oEditNPC(id){var n=S.npcs.find(function(x){return x.id===id;});openMod('<div class="mtitle">Редактировать НПС</div><label class="fl">Имя</label><input class="inp" id="en_n" value="'+n.name+'"><label class="fl">Заметки</label><textarea class="inp" id="en_d">'+n.notes+'</textarea><div class="row" style="margin-top:16px"><button class="bpri" onclick="sEditNPC('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
+function oEditNPC(id){var n=S.npcs.find(function(x){return x.id===id;});openMod('<div class="mtitle">Редактировать НПС</div><label class="fl">Имя</label><input class="inp" id="en_n" value="'+n.name+'"><label class="fl">Заметки</label><textarea class="inp" id="en_d">'+n.notes+'</textarea><div class="row" style="margin-top:16px"><button class="bpri" onclick="sEditNPC('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div><div style="margin-top:10px;padding-top:10px;border-top:1px solid #1a1510"><button class="bdng" style="width:100%" onclick="oDelNPC('+id+')">Удалить персонажа</button></div>');}
 function sEditNPC(id){S.npcs=S.npcs.map(function(x){return x.id===id?Object.assign({},x,{name:document.getElementById("en_n").value,notes:document.getElementById("en_d").value}):x;});closeMod();ntf("НПС обновлён");render();}
+function oDelNPC(id){var n=S.npcs.find(function(x){return x.id===id;});openMod('<div class="mtitle">Удалить персонажа?</div><div style="font-size:.82rem;color:#e8dcc8;margin-bottom:16px">«'+n.name+'» будет удалён без возможности восстановления.</div><div class="row"><button class="bdng" style="flex:1" onclick="S.npcs=S.npcs.filter(function(x){return x.id!=='+id+';});closeMod();ntf(\'Удалено\',\'#e05050\');render()">Удалить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
