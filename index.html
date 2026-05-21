@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="ru">
+<html lang="ru" data-theme="dark">
 <head>
 <script src="https://telegram.org/js/telegram-web-app.js"></script>
 <meta charset="UTF-8">
@@ -8,150 +8,541 @@
 <meta http-equiv="Pragma" content="no-cache">
 <meta http-equiv="Expires" content="0">
 <title>Лист персонажа</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@400;600;700&family=Cinzel+Decorative:wght@400;700&family=EB+Garamond:ital,wght@0,400;0,500;1,400&display=swap" rel="stylesheet">
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0908;color:#e8dcc8;font-family:Georgia,serif;min-height:100vh}
-.app{max-width:900px;margin:0 auto}
-.hdr{background:#17130e;border-bottom:1px solid #2e2214;padding:14px 16px 0;position:sticky;top:0;z-index:50}
-.hdr-top{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
-.cname{font-size:1.4rem;font-weight:bold;color:#c9a84c;letter-spacing:.06em}
-.lbadge{background:#1a1208;border:1px solid #c9a84c;color:#c9a84c;border-radius:4px;padding:2px 8px;font-size:.7rem;letter-spacing:.1em;white-space:nowrap}
-.tabs{display:flex;margin-top:12px;overflow-x:auto}
-.tbtn{padding:8px 12px;background:transparent;border:none;border-top:2px solid transparent;color:#7a6a52;cursor:pointer;font-size:.72rem;letter-spacing:.06em;white-space:nowrap;font-family:Georgia,serif}
-.tbtn.on{background:#0a0908;border-top-color:#c9a84c;color:#c9a84c}
-.cnt{padding:16px}
-.card{background:#13110e;border:1px solid #242018;border-radius:8px;padding:14px;margin-bottom:12px}
-.stitle{font-size:.62rem;letter-spacing:.18em;color:#7a6a52;text-transform:uppercase;margin-bottom:12px;display:flex;align-items:center;gap:8px}
-.sline{flex:1;height:1px;background:linear-gradient(90deg,#2a2018,transparent)}
-.g2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
-.bwrap{height:6px;background:#1a1510;border-radius:4px;overflow:hidden;margin-top:4px}
-.bfill{height:100%;border-radius:4px;transition:width .4s}
-.hpnum{font-size:1.7rem;font-weight:bold}
-.snum{font-size:1.4rem;font-weight:bold;color:#7ec8e3}
-.inp{background:#0a0908;border:1px solid #3a2e1e;color:#e8dcc8;border-radius:4px;padding:6px 10px;font-size:.8rem;font-family:Georgia,serif;outline:none;width:100%}
-.inp:focus{border-color:#c9a84c}
-textarea.inp{resize:vertical;min-height:52px}
-.btn{background:#1e1a12;border:1px solid #4a3a22;color:#c9a84c;border-radius:4px;padding:6px 11px;cursor:pointer;font-size:.73rem;font-family:Georgia,serif}
-.btn:hover{background:#2a2218}
-.bpri{background:#c9a84c;border:1px solid #c9a84c;color:#0a0908;border-radius:4px;padding:6px 11px;cursor:pointer;font-size:.73rem;font-weight:bold;font-family:Georgia,serif}
-.bpri:hover{opacity:.85}
-.bdng{background:#1f0a0a;border:1px solid #7a2020;color:#e05050;border-radius:4px;padding:4px 8px;cursor:pointer;font-size:.68rem;font-family:Georgia,serif}
-.bdng:hover{background:#2a0f0f}
-.beq{border-radius:4px;padding:3px 9px;cursor:pointer;font-size:.66rem;font-family:Georgia,serif;border:1px solid;white-space:nowrap}
-.ag{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
-.ac{background:#0a0908;border:1px solid #242018;border-radius:6px;padding:10px;text-align:center}
-.av-total{font-size:1.8rem;font-weight:bold;color:#c9a84c;line-height:1}
-.al{font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-top:2px}
-.tg{display:inline-block;border-radius:3px;padding:2px 6px;font-size:.6rem;letter-spacing:.07em;border:1px solid}
-.ir{display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:#0a0908;border:1px solid #242018;border-radius:6px;margin-bottom:6px}
-.irc{flex-direction:column;align-items:flex-start;gap:4px}
-.pc{background:#0a0908;border:1px solid #242018;border-radius:6px;padding:11px;margin-bottom:10px}
-.ov{position:fixed;inset:0;background:rgba(0,0,0,.88);display:flex;align-items:center;justify-content:center;z-index:100}
-.modal{background:#13110e;border:1px solid #3a2e1e;border-radius:10px;padding:22px;width:340px;max-width:95vw;max-height:90vh;overflow-y:auto}
-.mtitle{color:#c9a84c;font-size:.92rem;letter-spacing:.1em;margin-bottom:16px}
-.fl{font-size:.62rem;color:#7a6a52;letter-spacing:.1em;display:block;margin-bottom:3px;margin-top:10px}
-.row{display:flex;gap:6px;align-items:center}
-.notif{position:fixed;top:14px;left:50%;transform:translateX(-50%);background:#13110e;border-radius:6px;padding:8px 16px;z-index:300;font-size:.78rem;pointer-events:none;letter-spacing:.05em;border:1px solid}
-select.inp option{background:#13110e}
-.cd{background:#0a0908;border:1px solid #3a2e1e;border-radius:6px;padding:11px 13px;text-align:right;margin-bottom:12px}
-.cn{font-size:2.2rem;font-weight:bold;color:#e8dcc8;min-height:46px;letter-spacing:.05em;word-break:break-all}
-.cg{display:grid;grid-template-columns:repeat(4,1fr);gap:6px}
-.cb{background:#1e1a12;border:1px solid #4a3a22;color:#e8dcc8;border-radius:6px;width:100%;height:44px;cursor:pointer;font-size:1rem;font-family:Georgia,serif}
-.cb:hover{background:#2a2218}
-.cb.cc{background:#1a1208;border-color:#4a3a22;color:#c9a84c}
-.cb.cdmg{background:#2a0e0e;border-color:#7a2020;color:#e05050}
-.cb.cdmg:hover{background:#381212}
-.cb.chl{background:#0a1f0e;border-color:#1a5c2a;color:#27ae60}
-.cb.chl:hover{background:#0d2a14}
-.cb.cgadd{background:#1a1208;border-color:#7a5c1e;color:#c9a84c}
-.cb.cgadd:hover{background:#221908}
-.tgl{position:relative;width:36px;height:20px;cursor:pointer;display:inline-block}
-.tgl input{opacity:0;width:0;height:0}
-.tsl{position:absolute;inset:0;background:#1a1510;border:1px solid #4a3a22;border-radius:10px;transition:.2s}
-.tsl:before{content:"";position:absolute;height:12px;width:12px;left:3px;top:3px;background:#7a6a52;border-radius:50%;transition:.2s}
-.tgl input:checked+.tsl{background:#1a2a1a;border-color:#27ae60}
-.tgl input:checked+.tsl:before{transform:translateX(16px);background:#27ae60}
-.skill-group{margin-bottom:14px}
-.sg-title{font-size:.65rem;letter-spacing:.15em;color:#7a6a52;text-transform:uppercase;padding:6px 0;border-bottom:1px solid #242018;margin-bottom:8px;display:flex;justify-content:space-between;align-items:center}
-.text-row{display:flex;align-items:center;gap:6px;padding:6px 10px;background:#0a0908;border:1px solid #242018;border-radius:5px;margin-bottom:5px}
-.quest-item{background:#0a0908;border:1px solid #242018;border-radius:6px;padding:10px 12px;margin-bottom:7px}
-.quest-done{border-color:#27ae6044;opacity:.7}
-.npc-item{background:#0a0908;border:1px solid #242018;border-radius:6px;padding:10px 12px;margin-bottom:7px}
-.ach-item{display:flex;align-items:flex-start;gap:8px;padding:8px 10px;background:#0a0908;border:1px solid #242018;border-radius:6px;margin-bottom:6px}
-.gold-num{font-size:1.8rem;font-weight:bold;color:#c9a84c}
-.inv-sec-hdr{display:flex;justify-content:space-between;align-items:center;padding:8px 10px;background:#0d0b08;border:1px solid #2a2018;border-radius:6px;cursor:pointer;margin-bottom:6px}
-.inv-sec-hdr:hover{background:#131008}
-.inv-sec-title{font-size:.68rem;letter-spacing:.12em;color:#c9a84c;text-transform:uppercase}
-.editable{border:none;background:transparent;color:#e8dcc8;font-family:Georgia,serif;font-size:.78rem;outline:none;width:100%;cursor:text}
-.editable:focus{border-bottom:1px solid #c9a84c}
-.alch-sect-hdr{display:flex;justify-content:space-between;align-items:center;cursor:pointer;padding-bottom:8px}
-.alch-tbl{width:100%;border-collapse:collapse;font-size:.8rem}
-.alch-tbl th{background:#1a1510;color:#c9a84c;font-size:.65rem;letter-spacing:.1em;padding:6px 8px}
-.alch-tbl td{padding:5px 8px;border-bottom:1px solid #1a1510;vertical-align:middle}
-.alch-tbl tr:last-child td{border-bottom:none}
-.srch-result{display:flex;justify-content:space-between;align-items:center;padding:6px 8px;background:#0a0908;border:1px solid #242018;border-radius:4px;margin-bottom:4px}
-.slot-card{background:#0a0908;border:1px solid #3a2e1e;border-radius:8px;padding:12px 14px;margin-bottom:8px;display:flex;align-items:center;gap:10px;cursor:pointer}
-.slot-card:hover{border-color:#c9a84c;background:#111009}
-.slot-card.active{border-color:#c9a84c;background:#1a1208}
-.slot-num{width:28px;height:28px;border-radius:50%;background:#1e1a12;border:1px solid #4a3a22;color:#c9a84c;font-size:.75rem;display:flex;align-items:center;justify-content:center;flex-shrink:0}
-.slot-info{flex:1;min-width:0}
-.slot-name{font-size:.88rem;color:#e8dcc8;font-weight:bold;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
-.slot-lvl{font-size:.65rem;color:#7a6a52;margin-top:2px}
+
+:root {
+  --bg:#f2ece0; --bg-card:#ece5d4; --bg-deep:#e4dcc8;
+  --gold:#8a6914; --gold-dim:#b8960a; --gold-dark:#f0e8d0;
+  --text:#1e1810; --text-dim:#6b5c3e;
+  --border:#c4b494; --border-hi:#a89060;
+  --green:#2d6e3a; --red:#8b2a2a; --orange:#b05a10; --blue:#2a5878;
+  --font-h:'Cinzel',Georgia,serif; --font-hd:'Cinzel Decorative','Cinzel',serif; --font-b:'EB Garamond',Georgia,serif;
+  --btn-hover:#d8d0bc; --bar-track:#d0c8b4;
+  --shadow-card:rgba(100,80,40,.1); --shadow-hdr:rgba(100,80,40,.15);
+  --danger-bg:rgba(139,42,42,.06); --danger-border:rgba(139,42,42,.4); --danger-hover:rgba(139,42,42,.12);
+  --green-btn-bg:rgba(45,110,58,.08); --green-btn-bd:rgba(45,110,58,.4);
+  --alch-btn-bg:rgba(106,74,154,.08); --alch-btn-bd:rgba(106,74,154,.4); --alch-btn-clr:#7a4aaa;
+  --vk-btn-bg:rgba(42,88,120,.08); --vk-btn-bd:rgba(42,88,120,.4);
+}
+[data-theme="dark"] {
+  --bg:#0e0b07; --bg-card:#1a1610; --bg-deep:#130f0a;
+  --gold:#c49828; --gold-dim:#8a6820; --gold-dark:#2a1e08;
+  --text:#c8bc98; --text-dim:#7a6a48;
+  --border:#2e2618; --border-hi:#3e3020;
+  --green:#3a9a50; --red:#c05040; --orange:#c07820; --blue:#6ab0c8;
+  --btn-hover:#2a2418; --bar-track:#1e1a12;
+  --shadow-card:rgba(0,0,0,.5); --shadow-hdr:rgba(0,0,0,.7);
+  --danger-bg:rgba(160,60,40,.12); --danger-border:rgba(160,60,40,.55); --danger-hover:rgba(160,60,40,.2);
+  --green-btn-bg:rgba(40,120,60,.12); --green-btn-bd:rgba(40,120,60,.55);
+  --alch-btn-bg:rgba(80,50,130,.18); --alch-btn-bd:rgba(120,80,180,.5); --alch-btn-clr:#b07ae3;
+  --vk-btn-bg:rgba(30,50,100,.25); --vk-btn-bd:rgba(70,110,170,.55);
+}
+
+html { font-size: 18.4px; }
+body { background:var(--bg); color:var(--text); font-family:var(--font-b); font-size:1rem; min-height:100vh; overflow-x:hidden; }
+.app { max-width:860px; margin:0 auto; }
+
+.orn-diamond { width:6px; height:6px; background:var(--gold-dim); transform:rotate(45deg); display:inline-block; flex-shrink:0; }
+
+/* HEADER */
+.hdr { background:var(--bg-card); border-bottom:2px solid var(--gold-dim); padding:14px 16px 0; position:sticky; top:0; z-index:50; box-shadow:0 1px 0 var(--border),0 2px 8px var(--shadow-hdr); }
+.hdr-top { display:flex; align-items:flex-start; gap:10px; }
+.char-photo { width:48px; height:48px; border:2px solid var(--gold-dim); border-radius:4px; background:var(--bg-deep); display:flex; align-items:center; justify-content:center; cursor:pointer; overflow:hidden; flex-shrink:0; outline:1px solid var(--gold-dark); outline-offset:2px; }
+.char-photo:hover { border-color:var(--gold); }
+.char-photo-placeholder { display:flex; flex-direction:column; align-items:center; gap:2px; font-family:var(--font-h); font-size:.42rem; color:var(--text-dim); text-transform:uppercase; letter-spacing:.1em; }
+.hdr-info { flex:1; min-width:0; }
+.cname { font-family:var(--font-hd); font-size:19px; font-weight:700; color:var(--gold); letter-spacing:.06em; line-height:1.1; cursor:pointer; }
+.hdr-sub { font-family:var(--font-h); font-size:8.8px; color:var(--text-dim); letter-spacing:.2em; text-transform:uppercase; margin-top:1px; }
+.hdr-actions { display:flex; gap:6px; align-items:flex-start; }
+.hdr-btn-sq { width:36px; height:36px; padding:0; border-radius:4px; flex-shrink:0; cursor:pointer; display:flex; align-items:center; justify-content:center; font-size:1rem; border:1px solid var(--border); background:var(--bg-deep); color:var(--text); }
+.hdr-btn-sq:hover { background:var(--btn-hover); border-color:var(--border-hi); }
+.hdr-btn-sq:active { transform:scale(.9); }
+
+/* TABS */
+.tabs { display:flex; margin-top:14px; overflow-x:auto; gap:2px; max-width:100%; -webkit-overflow-scrolling:touch; scrollbar-width:none; }
+.tabs::-webkit-scrollbar { display:none; }
+.tbtn { padding:8px 10px; background:transparent; border:none; border-bottom:2px solid transparent; color:var(--text-dim); cursor:pointer; font-family:var(--font-h); font-size:10px; letter-spacing:.08em; text-transform:uppercase; white-space:nowrap; touch-action:manipulation; }
+.tbtn:hover { color:var(--text); }
+.tbtn.on { color:var(--gold); border-bottom-color:var(--gold); }
+
+/* CONTENT */
+.cnt { padding:16px; }
+
+/* CARDS */
+.card { background:var(--bg-card); border:1px solid var(--border-hi); border-radius:6px; padding:16px; margin-bottom:14px; position:relative; box-shadow:inset 0 0 0 1px rgba(138,105,20,.06),0 1px 4px var(--shadow-card); }
+.card::before,.card::after { content:''; position:absolute; width:10px; height:10px; border-color:var(--gold-dim); border-style:solid; }
+.card::before { top:4px; left:4px; border-width:1px 0 0 1px; }
+.card::after { bottom:4px; right:4px; border-width:0 1px 1px 0; }
+.card-accent { border-color:var(--gold-dim); box-shadow:inset 0 0 0 1px rgba(138,105,20,.08),0 2px 8px rgba(100,80,40,.12); }
+
+/* Collapsible */
+.card.collapsed .sec-grp-body { display:none; }
+.card.collapsed .sec-grp-chevron { transform:rotate(-90deg); }
+.sec-grp-chevron { transition:transform .2s; display:inline-block; font-size:.75rem; flex-shrink:0; padding:4px 2px 4px 8px; }
+
+/* SECTION TITLES */
+.stitle { font-family:var(--font-h); font-size:.6rem; letter-spacing:.22em; color:var(--text-dim); text-transform:uppercase; margin-bottom:14px; display:flex; align-items:center; gap:10px; }
+.stitle .orn-diamond { margin:0 2px; }
+.sline { flex:1; height:1px; background:linear-gradient(90deg,var(--border),transparent); }
+.stitle-gold { color:var(--gold); }
+.stitle-clickable { cursor:pointer; margin-bottom:0; padding:4px 0; touch-action:manipulation; }
+.stitle-clickable:hover { color:var(--gold-dim); }
+.stitle-clickable:active { opacity:.7; }
+
+/* Compact attrs */
+.ag-compact .ac { padding:6px 6px 5px; }
+.ag-compact .av-total { font-size:1.4rem; }
+.ag-compact .av-mod { font-size:.55rem; margin-top:0; }
+.ag-compact .al { font-size:.46rem; padding-top:4px; }
+
+/* Group title */
+.grp-title { font-family:var(--font-h); font-size:.56rem; letter-spacing:.18em; color:var(--text-dim); text-transform:uppercase; padding:5px 0; border-bottom:1px solid var(--border); margin-bottom:8px; margin-top:14px; }
+.grp-title:first-child { margin-top:0; }
+
+/* ATTRIBUTE GRID */
+.ag { display:grid; grid-template-columns:repeat(3,1fr); gap:10px; }
+.ac { background:var(--bg-deep); border:1px solid var(--border-hi); border-radius:6px; padding:10px 8px 8px; text-align:center; position:relative; }
+.ac::after { content:''; position:absolute; bottom:0; left:50%; transform:translateX(-50%); width:60%; height:1px; background:var(--gold-dim); opacity:.4; }
+.av-total { font-family:var(--font-hd); font-size:2rem; font-weight:700; color:var(--gold); line-height:1; }
+.av-mod { font-family:var(--font-h); font-size:.65rem; color:var(--text-dim); margin-top:1px; }
+.al { font-family:var(--font-h); font-size:.5rem; color:var(--text-dim); letter-spacing:.12em; text-transform:uppercase; margin-top:4px; padding-top:6px; border-top:1px solid var(--border); }
+
+/* GRIDS */
+.g2 { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
+.g3 { display:grid; grid-template-columns:1fr 1fr 1fr; gap:10px; }
+
+/* STAT BOXES */
+.stat-box { background:var(--bg-deep); border:1px solid var(--border-hi); border-radius:6px; padding:10px 12px; text-align:center; }
+.stat-box-label { font-family:var(--font-h); font-size:.5rem; letter-spacing:.18em; color:var(--text-dim); text-transform:uppercase; margin-bottom:4px; }
+.stat-box-val { font-family:var(--font-hd); font-size:1.6rem; font-weight:700; color:var(--text); line-height:1; }
+.stat-box-sub { font-size:.7rem; color:var(--text-dim); margin-top:2px; font-style:italic; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.stat-box.hp .stat-box-val { color:var(--green); }
+
+.bwrap { height:5px; background:var(--bar-track); border-radius:4px; overflow:hidden; margin-top:6px; }
+.bfill { height:100%; border-radius:4px; }
+.bfill.hp-fill { background:linear-gradient(90deg,#2d6e3a,var(--green)); }
+.bfill.exp-fill { background:linear-gradient(90deg,#c4a030,var(--gold)); }
+
+/* INPUTS & BUTTONS */
+.inp { background:var(--bg); border:1px solid var(--border-hi); color:var(--text); border-radius:4px; padding:6px 10px; font-size:.85rem; font-family:var(--font-b); outline:none; width:100%; }
+.inp:focus { border-color:var(--gold); }
+textarea.inp { resize:vertical; min-height:56px; }
+.fl { font-family:var(--font-h); font-size:.52rem; color:var(--text-dim); letter-spacing:.14em; text-transform:uppercase; display:block; margin-bottom:3px; margin-top:10px; }
+.btn { background:var(--bg-deep); border:1px solid var(--border); color:var(--gold); border-radius:3px; padding:5px 11px; cursor:pointer; font-family:var(--font-h); font-size:.6rem; letter-spacing:.08em; }
+.btn:hover { background:var(--btn-hover); border-color:var(--border-hi); }
+.btn:active { transform:scale(.95); opacity:.85; }
+.bpri { background:var(--gold); border:1px solid var(--gold); color:#fff; border-radius:3px; padding:5px 11px; cursor:pointer; font-family:var(--font-h); font-size:.6rem; font-weight:700; letter-spacing:.08em; }
+.bpri:hover { opacity:.85; }
+.bdng { background:var(--danger-bg); border:1px solid var(--danger-border); color:var(--red); border-radius:3px; padding:4px 8px; cursor:pointer; font-family:var(--font-h); font-size:.56rem; }
+.bdng:hover { background:var(--danger-hover); }
+.beq { border-radius:3px; padding:3px 9px; cursor:pointer; font-size:.56rem; font-family:var(--font-h); border:1px solid; white-space:nowrap; letter-spacing:.06em; }
+.row { display:flex; gap:6px; align-items:center; }
+
+/* TAGS */
+.tg { display:inline-block; border-radius:3px; padding:3px 8px; font-family:var(--font-h); font-size:.6rem; letter-spacing:.08em; border:1px solid; text-transform:uppercase; }
+.tg-gold { color:var(--gold); border-color:var(--gold-dim); background:rgba(201,168,76,.06); }
+.tg-green { color:var(--green); border-color:#27ae6055; background:rgba(39,174,96,.06); }
+.tg-red { color:var(--red); border-color:#e0505055; background:rgba(224,80,80,.06); }
+.tg-blue { color:var(--blue); border-color:#7ec8e355; background:rgba(126,200,227,.06); }
+.tg-dim { color:var(--text-dim); border-color:var(--border); background:transparent; }
+
+/* LEVEL BADGE / EXP / HP BLOCKS */
+.lvl-badge { display:flex; align-items:center; justify-content:center; background:var(--bg-deep); border:1px solid var(--gold-dim); color:var(--gold); font-family:var(--font-hd); font-size:1.1rem; font-weight:700; border-radius:6px; padding:6px 10px; cursor:pointer; width:100%; letter-spacing:.06em; }
+.lvl-badge:hover { border-color:var(--gold); }
+.exp-block { cursor:pointer; border-radius:4px; padding:4px; margin:0 -4px; }
+.exp-block:hover { background:rgba(138,105,20,.06); }
+.hp-block { cursor:pointer; transition:border-color .15s; }
+.hp-block:hover { border-color:var(--gold-dim) !important; }
+
+/* PROFESSION GRID */
+.prof-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.prof-card { background:var(--bg-deep); border:1px solid var(--border-hi); border-radius:6px; padding:12px 12px 12px 14px; cursor:pointer; position:relative; }
+.prof-card::before { content:''; position:absolute; left:0; top:20%; bottom:20%; width:2px; background:linear-gradient(180deg,transparent,var(--gold-dim),transparent); border-radius:2px; }
+.prof-card:hover { border-color:var(--gold-dim); }
+.prof-name { font-family:var(--font-h); font-size:.85rem; color:var(--gold); letter-spacing:.06em; }
+.prof-sub { font-size:.75rem; color:var(--text-dim); margin-top:2px; }
+
+/* SKILLS GRID */
+.skills-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:10px; }
+.skill-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:10px 12px; cursor:pointer; transition:border-color .15s; }
+.skill-card:hover { border-color:var(--border-hi); }
+.skill-card.expanded { border-color:var(--gold-dim); }
+.skill-card:active { transform:scale(.97); }
+.skill-card-name { font-family:var(--font-b); font-size:.88rem; color:var(--text); margin-bottom:4px; }
+.skill-prop { color:var(--green); font-size:.72rem; margin-top:4px; }
+.skill-hidden { display:none; margin-top:8px; padding-top:8px; border-top:1px solid var(--border); font-size:.78rem; }
+.skill-card.expanded .skill-hidden { display:block; }
+
+/* ITEMS GRID */
+.items-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.item-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:9px 8px; cursor:pointer; display:flex; flex-direction:column; gap:3px; min-height:88px; transition:border-color .15s; text-align:center; }
+.item-card:hover { border-color:var(--border-hi); }
+.item-card.equipped { border-color:rgba(45,110,58,.5); }
+.item-card:active { transform:scale(.97); }
+.item-card-name { font-family:var(--font-h); font-size:.62rem; color:var(--text); line-height:1.35; flex:1; letter-spacing:.04em; }
+.item-qty { display:flex; align-items:center; gap:6px; justify-content:center; }
+.item-qty-val { font-family:var(--font-h); font-size:.75rem; min-width:22px; text-align:center; }
+.item-qty-btn { width:32px; height:32px; padding:0; border-radius:4px; border:1px solid var(--border); background:var(--bg-deep); color:var(--text); cursor:pointer; font-size:.85rem; display:flex; align-items:center; justify-content:center; touch-action:manipulation; }
+.item-qty-btn:hover { background:var(--btn-hover); }
+.item-qty-btn:active { transform:scale(.9); background:var(--btn-hover); }
+.item-prop { font-size:.62rem; color:var(--green); margin-top:3px; line-height:1.3; }
+.item-eq-btn { width:100%; padding:2px 4px; font-size:.46rem; border-radius:3px; cursor:pointer; font-family:var(--font-h); letter-spacing:.06em; border:1px solid var(--border); background:var(--bg-deep); color:var(--text-dim); margin-top:2px; }
+.item-eq-btn.on { background:var(--green-btn-bg); border-color:var(--green-btn-bd); color:var(--green); }
+.item-eq-btn:hover { border-color:var(--border-hi); }
+
+/* NPC GRID */
+.npc-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.npc-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:9px 8px; cursor:pointer; min-height:80px; display:flex; flex-direction:column; gap:4px; transition:border-color .15s; }
+.npc-card:hover { border-color:var(--border-hi); }
+.npc-card-name { font-family:var(--font-h); font-size:.68rem; color:var(--gold); letter-spacing:.04em; }
+.npc-card-notes { font-size:.66rem; color:var(--text-dim); font-style:italic; display:-webkit-box; -webkit-line-clamp:4; -webkit-box-orient:vertical; overflow:hidden; line-height:1.4; }
+
+/* GRID ADD CARD */
+.grid-add { border:1px dashed var(--border) !important; background:transparent !important; opacity:.45; display:flex !important; align-items:center; justify-content:center; font-size:1.5rem; color:var(--text-dim); }
+.grid-add::before,.grid-add::after { display:none !important; }
+.grid-add:hover { opacity:1; border-color:var(--gold) !important; color:var(--gold); }
+
+/* QUEST ITEMS */
+.quest-item { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:10px 12px 10px 14px; margin-bottom:7px; position:relative; box-shadow:inset 2px 0 0 var(--gold-dim); transition:border-color .15s,box-shadow .15s; }
+.quest-item:hover { border-color:var(--border-hi); box-shadow:inset 2px 0 0 var(--gold); }
+.quest-item.quest-done { border-color:rgba(39,174,96,.2); box-shadow:inset 2px 0 0 rgba(39,174,96,.35); opacity:.6; }
+.quest-name { font-family:var(--font-h); font-size:.82rem; color:var(--text); letter-spacing:.04em; }
+.quest-desc { font-size:.78rem; color:var(--text-dim); font-style:italic; margin-top:3px; line-height:1.4; }
+.quest-task-badge { display:inline-flex; align-items:center; font-family:var(--font-h); font-size:.46rem; letter-spacing:.07em; color:var(--text-dim); border:1px solid var(--border); border-radius:10px; padding:2px 8px; cursor:pointer; white-space:nowrap; flex-shrink:0; margin-left:8px; transition:border-color .12s,color .12s; }
+.quest-task-badge:hover { border-color:var(--gold-dim); color:var(--gold); }
+.quest-task-badge.has-tasks { color:var(--gold-dim); border-color:var(--gold-dim); background:rgba(138,105,20,.06); }
+.quest-grp-lbl { font-family:var(--font-h); font-size:.5rem; letter-spacing:.18em; color:var(--text-dim); text-transform:uppercase; padding:5px 0; border-bottom:1px solid var(--border); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+.quest-grp-lbl .toggle-lnk { cursor:pointer; font-size:.46rem; color:var(--text-dim); transition:color .12s; }
+.quest-grp-lbl .toggle-lnk:hover { color:var(--gold); }
+
+/* TASK LIST */
+.task-list { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.task-item { display:flex; align-items:flex-start; gap:8px; padding:4px 6px; border-radius:4px; margin-bottom:2px; font-size:.8rem; }
+.task-item:hover { background:rgba(201,168,76,.05); }
+.task-check { width:24px; height:24px; border:1px solid var(--border-hi); border-radius:4px; flex-shrink:0; display:flex; align-items:center; justify-content:center; font-size:.75rem; color:var(--green); background:var(--bg); cursor:pointer; touch-action:manipulation; transition:background .12s,border-color .12s; }
+.task-check:hover { border-color:var(--gold-dim); }
+.task-check.checked { border-color:var(--green); background:rgba(39,174,96,.12); }
+.task-check:active { transform:scale(.9); }
+.task-hint { font-size:.72rem; color:var(--text-dim); font-style:italic; margin-top:1px; }
+.task-add-btn { width:100%; margin-top:7px; padding:5px 8px; border:1px dashed var(--border); background:transparent; color:var(--text-dim); border-radius:4px; font-family:var(--font-h); font-size:.5rem; letter-spacing:.1em; text-transform:uppercase; cursor:pointer; opacity:.5; transition:opacity .15s,border-color .15s,color .15s; }
+.task-add-btn:hover { opacity:1; border-color:var(--gold-dim); color:var(--gold); }
+
+/* ALCHEMY */
+.alch-tbl { width:100%; border-collapse:collapse; font-size:.85rem; font-family:var(--font-b); }
+.alch-tbl th { background:var(--bg-deep); color:var(--gold); font-family:var(--font-h); font-size:.56rem; letter-spacing:.14em; text-transform:uppercase; padding:7px 10px; text-align:left; border-bottom:2px solid var(--border); }
+.alch-tbl td { padding:6px 10px; border-bottom:1px solid var(--border); vertical-align:middle; }
+.alch-tbl tr:last-child td { border-bottom:none; }
+.alch-tbl tr:hover td { background:rgba(138,105,20,.04); }
+.alch-items-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.alch-item-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:9px 8px; display:flex; flex-direction:column; gap:3px; min-height:100px; transition:border-color .15s; text-align:center; }
+.alch-item-card:hover { border-color:var(--border-hi); }
+.alch-item-card:active { transform:scale(.97); }
+.alch-item-name { font-family:var(--font-h); font-size:.62rem; color:var(--text); line-height:1.35; letter-spacing:.04em; }
+.alch-item-tags { display:flex; gap:4px; flex-wrap:wrap; margin-top:1px; justify-content:center; }
+.alch-process-btn { width:100%; padding:3px 4px; font-size:.46rem; border-radius:3px; cursor:pointer; font-family:var(--font-h); letter-spacing:.06em; background:var(--alch-btn-bg); border:1px solid var(--alch-btn-bd); color:var(--alch-btn-clr); margin-top:2px; }
+.alch-process-btn:hover { opacity:.85; }
+.alch-process-btn:active { transform:scale(.95); }
+.alch-recipe-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.alch-recipe-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:10px; cursor:pointer; transition:border-color .15s,background .12s; position:relative; display:flex; flex-direction:column; gap:5px; text-align:center; }
+.alch-recipe-card:active, .alch-recipe-card.alch-reacted { background:rgba(138,105,20,.08); border-color:var(--gold-dim); }
+.alch-recipe-result { font-family:var(--font-h); font-size:.68rem; color:var(--text); letter-spacing:.04em; }
+.alch-recipe-sep { height:1px; background:var(--border); margin:4px 0 6px; width:100%; }
+.alch-recipe-ingredients { display:flex; flex-direction:column; gap:3px; }
+.alch-recipe-ing { font-size:.62rem; color:var(--text-dim); display:flex; align-items:center; gap:4px; justify-content:center; }
+.alch-recipe-del { position:absolute; top:5px; right:5px; width:18px; height:18px; background:var(--danger-bg); border:1px solid var(--danger-border); color:var(--red); border-radius:3px; cursor:pointer; font-size:.52rem; display:flex; align-items:center; justify-content:center; line-height:1; }
+.alch-recipe-del:hover { background:var(--danger-hover); }
+.alch-base-grid { display:grid; grid-template-columns:repeat(2,1fr); gap:8px; }
+.alch-base-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:9px 8px; display:flex; flex-direction:column; gap:4px; min-height:88px; transition:border-color .15s; text-align:center; }
+.alch-base-card:hover { border-color:var(--border-hi); }
+.alch-base-name { font-family:var(--font-h); font-size:.62rem; color:var(--text); line-height:1.35; letter-spacing:.04em; flex:1; }
+.alch-base-actions { display:grid; grid-template-columns:1fr auto; gap:4px; margin-top:auto; width:100%; }
+.alch-add-inv-btn { padding:3px 4px; font-size:.46rem; border-radius:3px; cursor:pointer; font-family:var(--font-h); letter-spacing:.06em; border:1px solid var(--green-btn-bd); background:var(--green-btn-bg); color:var(--green); }
+.alch-add-inv-btn:hover { opacity:.85; }
+.alch-ctrl-bar { display:flex; align-items:center; gap:5px; flex-shrink:0; }
+.alch-icon-btn { background:var(--bg-deep); border:1px solid var(--border); color:var(--text-dim); border-radius:4px; padding:0; cursor:pointer; font-size:.95rem; display:flex; align-items:center; justify-content:center; width:36px; height:36px; flex-shrink:0; touch-action:manipulation; }
+.alch-icon-btn:hover { border-color:var(--border-hi); color:var(--text); }
+.alch-icon-btn.active { border-color:var(--gold-dim); color:var(--gold); background:rgba(138,105,20,.06); }
+.alch-icon-btn:active { transform:scale(.9); }
+.alch-ctrl-btn { background:var(--bg-deep); border:1px solid var(--border); color:var(--text-dim); border-radius:3px; padding:3px 9px; cursor:pointer; font-family:var(--font-h); font-size:.5rem; letter-spacing:.08em; display:flex; align-items:center; gap:4px; }
+.alch-ctrl-btn:hover { border-color:var(--border-hi); color:var(--text); }
+.alch-ctrl-btn.active { border-color:var(--gold-dim); color:var(--gold); background:rgba(138,105,20,.06); }
+.alch-filter-panel { margin-top:8px; padding:8px 10px; background:var(--bg); border:1px solid var(--border); border-radius:5px; display:none; }
+.alch-filter-panel.open { display:block; }
+.alch-filter-row { display:flex; gap:6px; flex-wrap:wrap; align-items:center; margin-bottom:6px; }
+.alch-filter-row:last-child { margin-bottom:0; }
+.alch-sect-hdr { display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding-bottom:8px; }
+
+/* BACKPACK INLINE */
+.bp-settings { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); display:none; }
+.bp-settings.open { display:block; }
+
+/* GOLD / LOG */
+.gold-num { font-family:var(--font-hd); font-size:2rem; font-weight:700; color:var(--gold); letter-spacing:.04em; }
+.snum { font-family:var(--font-hd); font-size:1.3rem; font-weight:700; color:var(--blue); }
+.log-entry { display:flex; justify-content:space-between; align-items:center; padding:5px 0; border-bottom:1px solid var(--border); font-size:.78rem; }
+.log-entry:last-child { border-bottom:none; }
+.log-time { color:var(--text-dim); font-size:.68rem; flex-shrink:0; }
+.log-scroll { max-height:160px; overflow-y:auto; padding-right:6px; }
+
+/* TEXT ROW / ACH / EDITABLE */
+.text-row { display:flex; align-items:center; gap:8px; padding:7px 11px; background:var(--bg-deep); border:1px solid var(--border); border-radius:5px; margin-bottom:5px; }
+.editable { border:none; background:transparent; color:var(--text); font-family:var(--font-b); font-size:.85rem; outline:none; width:100%; cursor:text; }
+.editable:focus { border-bottom:1px solid var(--gold); }
+.ach-item { display:flex; align-items:flex-start; gap:10px; padding:9px 11px; background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; margin-bottom:6px; }
+.ach-icon { font-size:1.1rem; flex-shrink:0; }
+.ach-body { flex:1; min-width:0; }
+.ach-name { font-family:var(--font-h); font-size:.78rem; color:var(--gold); }
+.ach-prop { font-size:.75rem; color:var(--green); margin-top:2px; }
+
+/* LEGACY CLASSES (used by render functions until updated) */
+.ir { display:flex; align-items:center; justify-content:space-between; padding:8px 10px; background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; margin-bottom:6px; }
+.irc { flex-direction:column; align-items:flex-start; gap:4px; }
+.pc { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:11px; margin-bottom:10px; }
+.hpnum { font-family:var(--font-hd); font-size:1.8rem; font-weight:700; line-height:1; }
+.lbadge { background:var(--bg-deep); border:1px solid var(--gold-dim); color:var(--gold); border-radius:4px; padding:2px 8px; font-family:var(--font-h); font-size:.6rem; letter-spacing:.1em; white-space:nowrap; }
+.sg-title { font-family:var(--font-h); font-size:.56rem; letter-spacing:.18em; color:var(--text-dim); text-transform:uppercase; padding:5px 0; border-bottom:1px solid var(--border); margin-bottom:8px; display:flex; justify-content:space-between; align-items:center; }
+.skill-group { margin-bottom:14px; }
+.npc-item { background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; padding:10px 12px; margin-bottom:7px; }
+.inv-sec-hdr { display:flex; justify-content:space-between; align-items:center; padding:8px 10px; background:var(--bg-deep); border:1px solid var(--border); border-radius:6px; cursor:pointer; margin-bottom:6px; }
+.inv-sec-hdr:hover { background:var(--btn-hover); }
+.inv-sec-title { font-family:var(--font-h); font-size:.62rem; letter-spacing:.12em; color:var(--gold); text-transform:uppercase; }
+.tgl { position:relative; width:36px; height:20px; cursor:pointer; display:inline-block; }
+.tgl input { opacity:0; width:0; height:0; }
+.tsl { position:absolute; inset:0; background:var(--bg-deep); border:1px solid var(--border-hi); border-radius:10px; transition:.2s; }
+.tsl:before { content:""; position:absolute; height:12px; width:12px; left:3px; top:3px; background:var(--text-dim); border-radius:50%; transition:.2s; }
+.tgl input:checked+.tsl { background:rgba(58,154,80,.15); border-color:var(--green); }
+.tgl input:checked+.tsl:before { transform:translateX(16px); background:var(--green); }
+.srch-result { display:flex; justify-content:space-between; align-items:center; padding:6px 8px; background:var(--bg-deep); border:1px solid var(--border); border-radius:4px; margin-bottom:4px; }
+.slot-card { background:var(--bg-deep); border:1px solid var(--border); border-radius:8px; padding:12px 14px; margin-bottom:8px; display:flex; align-items:center; gap:10px; cursor:pointer; }
+.slot-card:hover { border-color:var(--gold-dim); background:var(--btn-hover); }
+.slot-card.active { border-color:var(--gold); background:var(--bg-card); }
+.slot-num { width:28px; height:28px; border-radius:50%; background:var(--bg-card); border:1px solid var(--border-hi); color:var(--gold); font-family:var(--font-h); font-size:.65rem; display:flex; align-items:center; justify-content:center; flex-shrink:0; }
+.slot-info { flex:1; min-width:0; }
+.slot-name { font-size:.88rem; color:var(--text); font-weight:bold; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.slot-lvl { font-size:.65rem; color:var(--text-dim); margin-top:2px; }
+.mtitle { font-family:var(--font-h); color:var(--gold); font-size:.82rem; letter-spacing:.14em; text-transform:uppercase; margin-bottom:16px; }
+
+/* OLD MODAL SYSTEM (openMod/closeMod) */
+.ov { position:fixed; inset:0; background:rgba(0,0,0,.72); display:flex; align-items:center; justify-content:center; z-index:200; }
+.modal { background:var(--bg-card); border:1px solid var(--border-hi); border-radius:8px; padding:22px; width:340px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.4); }
+
+/* NEW MODAL SYSTEM (openModal/closeModal) */
+.modal-ov { position:fixed; inset:0; background:rgba(0,0,0,.55); display:none; align-items:center; justify-content:center; z-index:200; }
+.modal-ov.open { display:flex; }
+.modal-box { background:var(--bg-card); border:1px solid var(--border-hi); border-radius:8px; padding:20px; width:300px; max-width:95vw; max-height:90vh; overflow-y:auto; box-shadow:0 8px 32px rgba(0,0,0,.3); position:relative; }
+.modal-box::before { content:''; position:absolute; top:6px; left:6px; width:12px; height:12px; border-top:1px solid var(--gold-dim); border-left:1px solid var(--gold-dim); }
+.modal-box::after { content:''; position:absolute; bottom:6px; right:6px; width:12px; height:12px; border-bottom:1px solid var(--gold-dim); border-right:1px solid var(--gold-dim); }
+.modal-title { font-family:var(--font-h); font-size:.78rem; color:var(--gold); letter-spacing:.14em; text-transform:uppercase; margin-bottom:14px; }
+.calc-display { font-family:var(--font-hd); font-size:1.8rem; color:var(--text); background:var(--bg-deep); border:1px solid var(--border-hi); border-radius:6px; padding:8px 12px; text-align:right; margin-bottom:10px; min-height:52px; }
+.calc-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:5px; margin-bottom:8px; }
+.calc-btn { background:var(--bg-deep); border:1px solid var(--border); color:var(--text); border-radius:4px; padding:9px 0; font-family:var(--font-h); font-size:.82rem; cursor:pointer; }
+.calc-btn:hover { background:var(--btn-hover); }
+.calc-actions { display:grid; grid-template-columns:1fr 1fr; gap:6px; }
+
+/* NOTIFICATION */
+.notif { position:fixed; top:14px; left:50%; transform:translateX(-50%); background:var(--bg-card); border-radius:6px; padding:8px 16px; z-index:300; font-family:var(--font-h); font-size:.72rem; pointer-events:none; letter-spacing:.05em; border:1px solid; }
+
+/* HELPERS */
+.mt6{margin-top:6px} .mt10{margin-top:10px} .mt14{margin-top:14px}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.text-dim{color:var(--text-dim)} .text-gold{color:var(--gold)} .text-green{color:var(--green)} .text-red{color:var(--red)}
+.fs-sm{font-size:.75rem} .fs-xs{font-size:.65rem;font-family:var(--font-h);letter-spacing:.1em} .italic{font-style:italic}
+
+/* SCROLLBARS */
+* { scrollbar-width:thin; scrollbar-color:var(--border-hi) var(--bg-deep); }
+*::-webkit-scrollbar { width:6px; height:6px; }
+*::-webkit-scrollbar-track { background:var(--bg-deep); border-radius:4px; }
+*::-webkit-scrollbar-thumb { background:var(--border); border-radius:4px; border:1px solid var(--bg-deep); }
+*::-webkit-scrollbar-thumb:hover { background:var(--border-hi); }
+
+select.inp option { background:var(--bg-card); }
 </style>
 </head>
 <body>
 <div class="app">
+
+<!-- HEADER -->
 <div class="hdr">
   <div class="hdr-top">
-    <span class="cname" id="charNameDisp" onclick="openCharSelect()" style="cursor:pointer" title="Сменить персонажа"></span>
-    <span class="lbadge" id="lvlD">УР. 1</span>
-    <span class="lbadge" id="slotD" onclick="openCharSelect()" style="cursor:pointer;color:#7a6a52;border-color:#3a2e1e" title="Персонажи">1/1</span>
-    <button class="btn" onclick="openLinkModal()" style="margin-left:auto;background:#1a1f3a;border-color:#4a6fa5;color:#7ec8e3">🔗 VK</button>
-    <button class="btn" onclick="saveCharacter()" style="background:#27ae60;border-color:#27ae60;color:#fff">💾 Сохранить</button>
+    <div class="char-photo" onclick="openCharSelect()" title="Персонажи">
+      <div class="char-photo-placeholder">
+        <span style="font-size:1.2rem;opacity:.3">⚔</span>
+        <span>слот</span>
+      </div>
+    </div>
+    <div class="hdr-info">
+      <div class="cname" id="charNameDisp" onclick="openCharSelect()" title="Сменить персонажа">Персонаж</div>
+      <div class="hdr-sub" id="hdrSub"></div>
+      <div class="hdr-sub" id="slotD" style="margin-top:1px;opacity:.6"></div>
+    </div>
+    <div class="hdr-actions">
+      <button class="hdr-btn-sq" onclick="openLinkModal()" style="background:var(--vk-btn-bg);border-color:var(--vk-btn-bd);color:var(--blue)" title="VK">🔗</button>
+      <button class="hdr-btn-sq" onclick="saveCharacter()" style="background:var(--green-btn-bg);border-color:var(--green-btn-bd);color:var(--green)" title="Сохранить">💾</button>
+      <button class="hdr-btn-sq" id="themeBtn" onclick="toggleTheme()" title="Тема">☀</button>
+    </div>
   </div>
   <div class="tabs" id="tabs"></div>
 </div>
+
 <div class="cnt" id="cnt"></div>
 </div>
+
+<!-- NOTIFICATION -->
 <div id="notifEl" class="notif" style="display:none"></div>
-<div id="movl" class="ov" style="display:none" onclick="closeMod()"><div class="modal" onclick="event.stopPropagation()" id="mbox"></div></div>
-<div id="hpcalc" class="ov" style="display:none" onclick="closeHpCalc()">
-  <div class="modal" style="width:300px" onclick="event.stopPropagation()">
-    <div class="mtitle">Здоровье</div>
-    <div class="cd"><div class="cn" id="hpcnum">0</div><div style="font-size:.68rem;color:#7a6a52">Введите число</div></div>
-    <div class="cg">
-      <button class="cb" onclick="hcp('7')">7</button><button class="cb" onclick="hcp('8')">8</button><button class="cb" onclick="hcp('9')">9</button><button class="cb cc" onclick="hccl()">C</button>
-      <button class="cb" onclick="hcp('4')">4</button><button class="cb" onclick="hcp('5')">5</button><button class="cb" onclick="hcp('6')">6</button><button class="cb cc" onclick="hcdl()">⌫</button>
-      <button class="cb" onclick="hcp('1')">1</button><button class="cb" onclick="hcp('2')">2</button><button class="cb" onclick="hcp('3')">3</button><div></div>
-      <button class="cb" style="grid-column:span 2" onclick="hcp('0')">0</button><div></div><div></div>
+
+<!-- OLD MODAL SYSTEM (openMod/closeMod — профессии, навыки, предметы, etc.) -->
+<div id="movl" class="ov" style="display:none" onclick="closeMod()">
+  <div class="modal" onclick="event.stopPropagation()" id="mbox"></div>
+</div>
+
+<!-- HP MODAL -->
+<div class="modal-ov" id="hp-modal">
+  <div class="modal-box">
+    <div class="modal-title">⚔ HP Калькулятор</div>
+    <div style="text-align:center;margin-bottom:12px;padding:10px;background:var(--bg-deep);border-radius:6px" id="hp-modal-info">
+      <div class="fs-xs text-dim">Текущее HP</div>
+      <div style="font-family:var(--font-hd);font-size:1.8rem;color:var(--green)" id="hp-modal-val">—</div>
+      <div class="bwrap" style="margin-top:6px"><div class="bfill hp-fill" id="hp-modal-bar" style="width:100%"></div></div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-top:10px">
-      <button class="cb cdmg" style="width:100%;height:48px;font-size:.7rem;border-radius:6px;line-height:1.3" onclick="hcApply('d')">Урон<br><span style="font-size:.58rem;opacity:.75">−броня</span></button>
-      <button class="cb cdmg" style="width:100%;height:48px;font-size:.7rem;border-radius:6px;line-height:1.3;border-color:#ff6b6b" onclick="hcApply('p')">Урон<br><span style="font-size:.58rem;opacity:.75">сквозной</span></button>
-      <button class="cb chl" style="width:100%;height:48px;font-size:.7rem;border-radius:6px" onclick="hcApply('h')">Лечение</button>
+    <div class="calc-display" id="hp-disp">0</div>
+    <div class="calc-grid">
+      <button class="calc-btn" onclick="calcInput('hp-disp','7')">7</button><button class="calc-btn" onclick="calcInput('hp-disp','8')">8</button><button class="calc-btn" onclick="calcInput('hp-disp','9')">9</button><button class="calc-btn" onclick="calcDel('hp-disp')" style="color:var(--gold)">⌫</button>
+      <button class="calc-btn" onclick="calcInput('hp-disp','4')">4</button><button class="calc-btn" onclick="calcInput('hp-disp','5')">5</button><button class="calc-btn" onclick="calcInput('hp-disp','6')">6</button><button class="calc-btn" onclick="calcClear('hp-disp')" style="color:var(--red)">C</button>
+      <button class="calc-btn" onclick="calcInput('hp-disp','1')">1</button><button class="calc-btn" onclick="calcInput('hp-disp','2')">2</button><button class="calc-btn" onclick="calcInput('hp-disp','3')">3</button><button class="calc-btn" onclick="calcInput('hp-disp','0')">0</button>
     </div>
-    <div id="hpLogWrap" style="margin-top:10px;max-height:160px;overflow-y:auto;border-top:1px solid #1a1510;padding-top:8px"></div>
-    <button class="btn" style="width:100%;margin-top:7px;text-align:center" onclick="closeHpCalc()">Закрыть</button>
+    <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:6px;margin-bottom:8px">
+      <button class="bdng" style="padding:8px 0;font-size:.56rem" onclick="hpModalApply('d')">⚔ Урон<br><span style="font-size:.44rem;opacity:.75">−броня</span></button>
+      <button class="bdng" style="padding:8px 0;font-size:.56rem;border-color:var(--orange);color:var(--orange)" onclick="hpModalApply('p')">⚔ Урон<br><span style="font-size:.44rem;opacity:.75">сквозной</span></button>
+      <button class="btn" style="padding:8px 0;font-size:.56rem;background:var(--green-btn-bg);border-color:var(--green-btn-bd);color:var(--green)" onclick="hpModalApply('h')">✚ Лечение</button>
+    </div>
+    <div id="hpLogWrap" style="max-height:130px;overflow-y:auto;border-top:1px solid var(--border);padding-top:8px;margin-bottom:8px"></div>
+    <button class="btn" style="width:100%" onclick="closeModal('hp-modal')">Закрыть</button>
   </div>
 </div>
-<div id="goldcalc" class="ov" style="display:none" onclick="closeGoldCalc()">
-  <div class="modal" style="width:280px" onclick="event.stopPropagation()">
-    <div class="mtitle">Золото</div>
-    <div class="cd"><div class="cn" id="gcnum">0</div><div style="font-size:.68rem;color:#7a6a52">Введите сумму</div></div>
-    <div class="cg">
-      <button class="cb" onclick="gcp('7')">7</button><button class="cb" onclick="gcp('8')">8</button><button class="cb" onclick="gcp('9')">9</button><button class="cb cc" onclick="gccl()">C</button>
-      <button class="cb" onclick="gcp('4')">4</button><button class="cb" onclick="gcp('5')">5</button><button class="cb" onclick="gcp('6')">6</button><button class="cb cc" onclick="gcdl()">⌫</button>
-      <button class="cb" onclick="gcp('1')">1</button><button class="cb" onclick="gcp('2')">2</button><button class="cb" onclick="gcp('3')">3</button><div></div>
-      <button class="cb" style="grid-column:span 2" onclick="gcp('0')">0</button><div></div><div></div>
+
+<!-- GOLD MODAL -->
+<div class="modal-ov" id="gold-modal">
+  <div class="modal-box">
+    <div class="modal-title">⬡ Операция с золотом</div>
+    <div style="text-align:center;margin-bottom:12px;padding:10px;background:var(--bg-deep);border-radius:6px">
+      <div class="fs-xs text-dim">Текущее золото</div>
+      <div class="gold-num" id="gold-modal-val">0</div>
     </div>
-    <div style="display:grid;grid-template-columns:1fr 1fr;gap:7px;margin-top:10px">
-      <button class="cb cgadd" style="width:100%;height:44px;font-size:.82rem;border-radius:6px" onclick="gcApply('add')">+ Получить</button>
-      <button class="cb cdmg" style="width:100%;height:44px;font-size:.82rem;border-radius:6px" onclick="gcApply('sub')">− Потратить</button>
+    <div class="calc-display" id="gold-disp">0</div>
+    <div class="calc-grid">
+      <button class="calc-btn" onclick="calcInput('gold-disp','7')">7</button><button class="calc-btn" onclick="calcInput('gold-disp','8')">8</button><button class="calc-btn" onclick="calcInput('gold-disp','9')">9</button><button class="calc-btn" onclick="calcDel('gold-disp')" style="color:var(--gold)">⌫</button>
+      <button class="calc-btn" onclick="calcInput('gold-disp','4')">4</button><button class="calc-btn" onclick="calcInput('gold-disp','5')">5</button><button class="calc-btn" onclick="calcInput('gold-disp','6')">6</button><button class="calc-btn" onclick="calcClear('gold-disp')" style="color:var(--red)">C</button>
+      <button class="calc-btn" onclick="calcInput('gold-disp','1')">1</button><button class="calc-btn" onclick="calcInput('gold-disp','2')">2</button><button class="calc-btn" onclick="calcInput('gold-disp','3')">3</button><button class="calc-btn" onclick="calcInput('gold-disp','0')">0</button>
     </div>
-    <div id="goldLogWrap" style="margin-top:10px;max-height:160px;overflow-y:auto;border-top:1px solid #1a1510;padding-top:8px"></div>
-    <button class="btn" style="width:100%;margin-top:7px;text-align:center" onclick="closeGoldCalc()">Закрыть</button>
+    <div class="calc-actions" style="margin-bottom:8px">
+      <button class="bdng" style="padding:8px 0;font-size:.62rem" onclick="goldModalApply('sub')">− Вычесть</button>
+      <button class="btn" style="background:var(--green-btn-bg);border-color:var(--green-btn-bd);color:var(--green);padding:8px 0;font-size:.62rem" onclick="goldModalApply('add')">+ Добавить</button>
+    </div>
+    <div id="goldLogWrap" style="max-height:130px;overflow-y:auto;border-top:1px solid var(--border);padding-top:8px;margin-bottom:8px"></div>
+    <button class="btn" style="width:100%" onclick="closeModal('gold-modal')">Закрыть</button>
   </div>
 </div>
+
+<!-- EXP MODAL -->
+<div class="modal-ov" id="exp-modal">
+  <div class="modal-box">
+    <div class="modal-title">★ Уровень и опыт</div>
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      <div>
+        <label class="fl" style="margin-top:0">Уровень</label>
+        <input class="inp" type="number" id="exp-modal-level" value="1" min="1" onchange="S.level=Math.max(1,parseInt(this.value)||1);render()">
+      </div>
+      <div>
+        <label class="fl" style="margin-top:0">Опыт до след. ур.</label>
+        <input class="inp" type="number" id="exp-modal-next" value="30" min="1" onchange="S.expNext=Math.max(1,parseInt(this.value)||1);var el=document.getElementById('exp-modal-val');if(el)el.textContent=S.exp+' / '+S.expNext;var bar=document.getElementById('exp-modal-bar');if(bar)bar.style.width=Math.min(100,S.expNext>0?S.exp/S.expNext*100:0)+'%'">
+      </div>
+    </div>
+    <div style="text-align:center;margin-bottom:12px;padding:10px;background:var(--bg-deep);border-radius:6px">
+      <div class="fs-xs text-dim">Текущий опыт</div>
+      <div style="font-family:var(--font-hd);font-size:1.6rem;color:var(--gold)" id="exp-modal-val">0 / 30</div>
+      <div class="bwrap" style="margin-top:6px"><div class="bfill exp-fill" id="exp-modal-bar" style="width:0%"></div></div>
+    </div>
+    <div class="calc-display" id="exp-disp">0</div>
+    <div class="calc-grid">
+      <button class="calc-btn" onclick="calcInput('exp-disp','7')">7</button><button class="calc-btn" onclick="calcInput('exp-disp','8')">8</button><button class="calc-btn" onclick="calcInput('exp-disp','9')">9</button><button class="calc-btn" onclick="calcDel('exp-disp')" style="color:var(--gold)">⌫</button>
+      <button class="calc-btn" onclick="calcInput('exp-disp','4')">4</button><button class="calc-btn" onclick="calcInput('exp-disp','5')">5</button><button class="calc-btn" onclick="calcInput('exp-disp','6')">6</button><button class="calc-btn" onclick="calcClear('exp-disp')" style="color:var(--red)">C</button>
+      <button class="calc-btn" onclick="calcInput('exp-disp','1')">1</button><button class="calc-btn" onclick="calcInput('exp-disp','2')">2</button><button class="calc-btn" onclick="calcInput('exp-disp','3')">3</button><button class="calc-btn" onclick="calcInput('exp-disp','0')">0</button>
+    </div>
+    <div class="calc-actions" style="margin-bottom:8px">
+      <button class="bdng" style="padding:8px 0;font-size:.62rem" onclick="expModalApply('sub')">− Убрать</button>
+      <button class="btn" style="background:var(--green-btn-bg);border-color:var(--green-btn-bd);color:var(--green);padding:8px 0;font-size:.62rem" onclick="expModalApply('add')">+ Добавить</button>
+    </div>
+    <button class="btn" style="width:100%" onclick="closeModal('exp-modal')">Закрыть</button>
+  </div>
+</div>
+
+<!-- ALCHEMY: ADD RECIPE MODAL -->
+<div class="modal-ov" id="alch-recipe-modal">
+  <div class="modal-box" style="width:340px">
+    <div class="modal-title">⚗ Добавить рецепт</div>
+    <label class="fl" style="margin-top:0">Тип</label>
+    <select class="inp" id="alch-recipe-type">
+      <option value="normal">Базовая реакция</option>
+      <option value="circle">Алхимический круг</option>
+    </select>
+    <label class="fl">Результат</label>
+    <select class="inp" id="alch-recipe-result-sel"></select>
+    <div style="margin-top:12px;padding-top:10px;border-top:1px solid var(--border)">
+      <div class="flex-between" style="margin-bottom:8px">
+        <div class="fs-xs text-dim" style="letter-spacing:.14em">ИНГРЕДИЕНТЫ</div>
+        <button class="btn" style="font-size:.5rem" onclick="addAlchIngRow()">+ Добавить</button>
+      </div>
+      <div id="alch-ing-rows"></div>
+    </div>
+    <div class="calc-actions" style="margin-top:14px">
+      <button class="btn" style="padding:8px 0" onclick="closeModal('alch-recipe-modal')">Отмена</button>
+      <button class="bpri" style="padding:8px 0" onclick="saveAlchRecipeModal()">Сохранить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALCHEMY: ADD ITEM TO DB MODAL -->
+<div class="modal-ov" id="alch-item-modal">
+  <div class="modal-box">
+    <div class="modal-title">⊕ Добавить предмет в базу</div>
+    <label class="fl" style="margin-top:0">Название</label>
+    <input class="inp" id="alch-item-name" placeholder="Название реагента">
+    <label class="fl">Уровень</label>
+    <select class="inp" id="alch-item-level">
+      <option>1</option><option>2</option><option>3</option><option>4</option>
+      <option>5</option><option>6</option><option>7</option><option>8</option>
+      <option>9</option><option>10</option>
+    </select>
+    <label class="fl">Атрибут</label>
+    <select class="inp" id="alch-item-attr">
+      <option>Сила</option><option>Ловкость</option><option>Живучесть</option>
+      <option>Интеллект</option><option>Торговля</option><option>Талант</option>
+    </select>
+    <div class="calc-actions" style="margin-top:14px">
+      <button class="btn" style="padding:8px 0" onclick="closeModal('alch-item-modal')">Отмена</button>
+      <button class="bpri" style="padding:8px 0" onclick="saveAlchItemModal()">Добавить</button>
+    </div>
+  </div>
+</div>
+
+<!-- ALCHEMY: CONFIRM DELETE MODAL -->
+<div class="modal-ov" id="alch-confirm-modal">
+  <div class="modal-box" style="width:280px">
+    <div class="modal-title" style="color:var(--red)">⚠ Подтверждение</div>
+    <div style="font-size:.82rem;color:var(--text);margin-bottom:16px;line-height:1.5">
+      Удалить <span id="alch-confirm-what" style="color:var(--gold)">элемент</span>?<br>
+      <span style="color:var(--text-dim);font-size:.75rem">Действие нельзя отменить.</span>
+    </div>
+    <div class="calc-actions">
+      <button class="btn" style="padding:8px 0" onclick="closeModal('alch-confirm-modal')">Отмена</button>
+      <button class="bdng" style="padding:8px 0" onclick="execAlchDelete()">Удалить</button>
+    </div>
+  </div>
+</div>
+
 <script>
 const BACKEND_URL = 'https://dnd-sheet-backend-bejb.onrender.com';
 let telegramUser = null;
@@ -202,6 +593,269 @@ async function saveCharacter(silent) {
     if (res.ok) { if (!silent) ntf('Сохранено ✓', '#27ae60'); }
     else { const err = await res.json().catch(()=>({})); ntf('Ошибка: '+(err.details||err.error||'HTTP '+res.status), '#e05050'); console.error('Save error:', err); }
   } catch(e) { ntf('Нет связи с сервером', '#e05050'); console.error('Network error:', e); }
+}
+
+/* ── NEW UI FUNCTIONS ── */
+
+function toggleTheme() {
+  var isDark = document.documentElement.dataset.theme === 'dark';
+  document.documentElement.dataset.theme = isDark ? 'light' : 'dark';
+  document.getElementById('themeBtn').textContent = isDark ? '☀' : '🌙';
+}
+
+function openModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.add('open');
+}
+function closeModal(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.remove('open');
+}
+
+// Close new modals on overlay click
+document.addEventListener('DOMContentLoaded', function() {
+  document.querySelectorAll('.modal-ov').forEach(function(ov) {
+    ov.addEventListener('click', function(e) { if (e.target === this) this.classList.remove('open'); });
+  });
+});
+
+function toggleSection(id) {
+  var el = document.getElementById(id);
+  if (!el) return;
+  el.classList.toggle('collapsed');
+  // persist state so render() can restore it
+  var key = id.replace('sec-', '');
+  if (typeof charSecState !== 'undefined' && Object.prototype.hasOwnProperty.call(charSecState, key)) {
+    charSecState[key] = el.classList.contains('collapsed');
+  }
+}
+
+function toggleBackpack() {
+  var el = document.getElementById('bp-settings');
+  if (el) el.classList.toggle('open');
+}
+
+function calcInput(dispId, digit) {
+  var el = document.getElementById(dispId);
+  if (!el) return;
+  if (el.textContent === '0') el.textContent = digit;
+  else if (el.textContent.length < 7) el.textContent += digit;
+  // sync to legacy calc vars (defined in shared.js)
+  if (dispId === 'hp-disp') { hcv = el.textContent; }
+  if (dispId === 'gold-disp') { gcv = el.textContent; }
+}
+function calcClear(dispId) {
+  var el = document.getElementById(dispId);
+  if (el) el.textContent = '0';
+  if (dispId === 'hp-disp') hcv = '';
+  if (dispId === 'gold-disp') gcv = '';
+}
+function calcDel(dispId) {
+  var el = document.getElementById(dispId);
+  if (!el) return;
+  el.textContent = el.textContent.length > 1 ? el.textContent.slice(0, -1) : '0';
+  var v = el.textContent === '0' ? '' : el.textContent;
+  if (dispId === 'hp-disp') hcv = v;
+  if (dispId === 'gold-disp') gcv = v;
+}
+
+/* HP MODAL BRIDGE */
+function openHpModal() {
+  var h = (typeof mhp === 'function') ? mhp() : 0;
+  var hp = (typeof S !== 'undefined') ? S.currentHP : 0;
+  var pct = h > 0 ? Math.min(100, Math.max(0, hp / h * 100)) : 0;
+  var el = document.getElementById('hp-modal-val');
+  var bar = document.getElementById('hp-modal-bar');
+  if (el) el.textContent = hp + ' / ' + h;
+  if (bar) bar.style.width = pct + '%';
+  hcv = '';
+  var disp = document.getElementById('hp-disp');
+  if (disp) disp.textContent = '0';
+  renderHpLog();
+  openModal('hp-modal');
+}
+// Override old function to use new modal
+function openHpCalc() { openHpModal(); }
+function closeHpCalc() { closeModal('hp-modal'); }
+
+function hpModalApply(t) {
+  hcApply(t);
+  // update modal display after apply
+  var h = (typeof mhp === 'function') ? mhp() : 0;
+  var hp = (typeof S !== 'undefined') ? S.currentHP : 0;
+  var pct = h > 0 ? Math.min(100, Math.max(0, hp / h * 100)) : 0;
+  var el = document.getElementById('hp-modal-val');
+  var bar = document.getElementById('hp-modal-bar');
+  if (el) el.textContent = hp + ' / ' + h;
+  if (bar) bar.style.width = pct + '%';
+}
+
+/* GOLD MODAL BRIDGE */
+function openGoldModal() {
+  var el = document.getElementById('gold-modal-val');
+  if (el && typeof S !== 'undefined') el.textContent = S.gold;
+  gcv = '';
+  var disp = document.getElementById('gold-disp');
+  if (disp) disp.textContent = '0';
+  renderGoldLog();
+  openModal('gold-modal');
+}
+function openGoldCalc() { openGoldModal(); }
+function closeGoldCalc() { closeModal('gold-modal'); }
+
+function goldModalApply(t) {
+  gcApply(t);
+  var el = document.getElementById('gold-modal-val');
+  if (el && typeof S !== 'undefined') el.textContent = S.gold;
+}
+
+/* EXP MODAL */
+function openExpModal() {
+  if (typeof S === 'undefined') return;
+  var exp = S.exp, expNext = S.expNext, level = S.level;
+  var pct = expNext > 0 ? Math.min(100, exp / expNext * 100) : 0;
+  var el = document.getElementById('exp-modal-val');
+  var bar = document.getElementById('exp-modal-bar');
+  var lvlInp = document.getElementById('exp-modal-level');
+  var nextInp = document.getElementById('exp-modal-next');
+  if (el) el.textContent = exp + ' / ' + expNext;
+  if (bar) bar.style.width = pct + '%';
+  if (lvlInp) lvlInp.value = level;
+  if (nextInp) nextInp.value = expNext;
+  var disp = document.getElementById('exp-disp');
+  if (disp) disp.textContent = '0';
+  openModal('exp-modal');
+}
+
+function expModalApply(t) {
+  var disp = document.getElementById('exp-disp');
+  var v = disp ? parseInt(disp.textContent) || 0 : 0;
+  if (v <= 0) return;
+  if (t === 'add') { S.exp += v; ntf('+' + v + ' опыта', '#c49828'); }
+  else { S.exp = Math.max(0, S.exp - v); ntf('-' + v + ' опыта', '#c07820'); }
+  if (disp) disp.textContent = '0';
+  // update modal display
+  var el = document.getElementById('exp-modal-val');
+  var bar = document.getElementById('exp-modal-bar');
+  var pct = S.expNext > 0 ? Math.min(100, S.exp / S.expNext * 100) : 0;
+  if (el) el.textContent = S.exp + ' / ' + S.expNext;
+  if (bar) bar.style.width = pct + '%';
+  render();
+}
+
+/* ALCHEMY NEW FUNCTIONS */
+function toggleAlchFilter(id) {
+  var el = document.getElementById(id);
+  if (el) el.classList.toggle('open');
+}
+
+function alchReact(card, name) {
+  card.classList.add('alch-reacted');
+  setTimeout(function() { card.classList.remove('alch-reacted'); }, 400);
+  // find the section's log and add entry
+  var log = document.getElementById('alch-log');
+  if (log) {
+    var now = new Date();
+    var t = String(now.getHours()).padStart(2,'0') + ':' + String(now.getMinutes()).padStart(2,'0');
+    var entry = document.createElement('div');
+    entry.className = 'log-entry';
+    entry.innerHTML = '<span><span style="color:var(--green)">✓</span> Создано: ' + name + '</span><span class="log-time">' + t + '</span>';
+    log.insertBefore(entry, log.firstChild);
+  }
+  // also log to alchHistory
+  if (typeof alchLog === 'function') alchLog('synth', 'Реакция', name);
+}
+
+var _alchDeleteTarget = null;
+var _alchDeleteType = null;
+function confirmAlchDelete(btn, what) {
+  _alchDeleteTarget = btn.closest ? (btn.closest('.alch-recipe-card') || btn.closest('.alch-base-card')) : null;
+  _alchDeleteType = what;
+  var el = document.getElementById('alch-confirm-what');
+  if (el) el.textContent = what;
+  openModal('alch-confirm-modal');
+}
+function execAlchDelete() {
+  if (_alchDeleteTarget) { _alchDeleteTarget.remove(); _alchDeleteTarget = null; }
+  closeModal('alch-confirm-modal');
+}
+
+function addAlchIngRow() {
+  var rows = document.getElementById('alch-ing-rows');
+  if (!rows || rows.children.length >= 7) return;
+  var opts = _buildAlchDBOpts();
+  var row = document.createElement('div');
+  row.className = 'alch-ing-row';
+  row.style.cssText = 'display:flex;gap:6px;align-items:center;margin-bottom:6px';
+  row.innerHTML = '<select class="inp" style="flex:1">' + opts + '</select>'
+    + '<button class="bdng" style="padding:3px 7px;flex-shrink:0" onclick="removeAlchIngRow(this)">✕</button>';
+  rows.appendChild(row);
+}
+function removeAlchIngRow(btn) {
+  var rows = document.getElementById('alch-ing-rows');
+  if (!rows || rows.children.length <= 1) return;
+  btn.closest('.alch-ing-row').remove();
+}
+function _buildAlchDBOpts() {
+  if (typeof S === 'undefined' || !S.alchDB) return '<option>База пуста</option>';
+  return S.alchDB.map(function(it) {
+    return '<option value="' + it.id + '">' + it.name + ' [ур.' + it.level + ', ' + it.attribute + ']</option>';
+  }).join('');
+}
+
+// Open alch recipe modal and populate selects
+function openAlchRecipeModal() {
+  var opts = _buildAlchDBOpts();
+  var resSel = document.getElementById('alch-recipe-result-sel');
+  if (resSel) resSel.innerHTML = opts;
+  var rows = document.getElementById('alch-ing-rows');
+  if (rows) {
+    rows.innerHTML = '';
+    // add 2 default rows
+    for (var i = 0; i < 2; i++) addAlchIngRow();
+  }
+  openModal('alch-recipe-modal');
+}
+
+// Override oAddAlchDB to use new modal
+function openAlchItemModal() {
+  document.getElementById('alch-item-name').value = '';
+  openModal('alch-item-modal');
+}
+
+function saveAlchRecipeModal() {
+  var resId = document.getElementById('alch-recipe-result-sel').value;
+  var type = document.getElementById('alch-recipe-type').value;
+  var rows = document.querySelectorAll('#alch-ing-rows .alch-ing-row select');
+  var reagentIds = [];
+  rows.forEach(function(sel) { if (sel.value) reagentIds.push(sel.value); });
+  if (!resId || reagentIds.length < 1) { ntf('Выберите результат и реагенты', '#e05050'); return; }
+  if (type === 'circle') {
+    S.alchCircleRecipes.push({ resultId: resId, reagentIds: reagentIds });
+  } else {
+    S.alchRecipes.push({ resultId: resId, reagentIds: reagentIds });
+  }
+  if (typeof alchLog === 'function') alchLog('recipe', 'Рецепт добавлен', '');
+  ntf('Рецепт сохранён', '#c49828');
+  closeModal('alch-recipe-modal');
+  render();
+}
+
+function saveAlchItemModal() {
+  var name = (document.getElementById('alch-item-name').value || '').trim();
+  var level = parseInt(document.getElementById('alch-item-level').value) || 1;
+  var attribute = document.getElementById('alch-item-attr').value;
+  if (!name) { ntf('Введите название', '#e05050'); return; }
+  if (typeof S !== 'undefined') {
+    if (S.alchDB.find(function(x) { return x.name === name && x.level === level && x.attribute === attribute; })) {
+      ntf('Уже есть в базе', '#c07820'); return;
+    }
+    S.alchDB.push({ id: 'a' + Date.now(), name: name, level: level, attribute: attribute });
+    if (typeof alchLog === 'function') alchLog('add', 'Добавлено в базу', name + ' [ур.' + level + ', ' + attribute + ']');
+    ntf('Добавлено: ' + name, '#c49828');
+    closeModal('alch-item-modal');
+    render();
+  }
 }
 </script>
 <script src="shared.js"></script>

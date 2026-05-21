@@ -477,13 +477,15 @@ let tab="char";
 let invOpen={weapons:true,armors:true,accessories:true,alch:true,potions:true,misc:true};
 let questsOpenDone=false,questsOpenActive=true;
 let questTasksOpen={};
-let alchSectOpen={proc:true,recipes:true,circle:true,base:true,hist:true};
+let alchSectOpen={inv:true,proc:true,recipes:true,circle:true,base:true,hist:true};
 let alchReagentCount=2,alchCircleReagentCount=2;
 let alchBaseSortCol="name",alchBaseSortDir=1,alchBaseSearch="";
 let alchBaseGroupBy="",alchInvGroupBy="",alchInvSortBy="name",alchInvSortDir=1;
 let alchInvGroupVisible=false,alchBaseGroupVisible=false;
+let alchInvSortVisible=false,alchBaseSortVisible=false;
 let hcv="",gcv="";
 let notesOpen=false;
+let charSecState={prof:false,props:false,titles:false,ach:false,notes:false};
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
@@ -527,8 +529,7 @@ function renderHpLog(){
     <button class="bdng" style="font-size:.6rem;padding:2px 7px" onclick="S.hpLog=[];renderHpLog();render()">Очистить</button>
   </div>${rows}`;
 }
-const openHpCalc=()=>{hcv="";document.getElementById("hpcnum").textContent="0";document.getElementById("hpcalc").style.display="flex";renderHpLog();};
-const closeHpCalc=()=>document.getElementById("hpcalc").style.display="none";
+// openHpCalc / closeHpCalc defined as bridge functions in index.html
 function hcp(d){if(hcv.length>=6)return;hcv+=d;document.getElementById("hpcnum").textContent=parseInt(hcv)||"0";}
 function hccl(){hcv="";document.getElementById("hpcnum").textContent="0";}
 function hcdl(){hcv=hcv.slice(0,-1);document.getElementById("hpcnum").textContent=hcv?parseInt(hcv):"0";}
@@ -580,8 +581,7 @@ function renderGoldLog(){
     <button class="bdng" style="font-size:.6rem;padding:2px 7px" onclick="S.goldLog=[];renderGoldLog();render()">Очистить</button>
   </div>${rows}`;
 }
-const openGoldCalc=()=>{gcv="";document.getElementById("gcnum").textContent="0";document.getElementById("goldcalc").style.display="flex";renderGoldLog();};
-const closeGoldCalc=()=>document.getElementById("goldcalc").style.display="none";
+// openGoldCalc / closeGoldCalc defined as bridge functions in index.html
 function gcp(d){if(gcv.length>=8)return;gcv+=d;document.getElementById("gcnum").textContent=parseInt(gcv)||"0";}
 function gccl(){gcv="";document.getElementById("gcnum").textContent="0";}
 function gcdl(){gcv=gcv.slice(0,-1);document.getElementById("gcnum").textContent=gcv?parseInt(gcv):"0";}
@@ -653,104 +653,169 @@ function armorBreakdown(){
 
 function rChar(){
   const h=mhp(),a=arm(),hp=S.currentHP;
-  const pp=Math.min(100,Math.max(0,hp/h*100)),ep=Math.min(100,S.exp/S.expNext*100);
-  const hc=pp>50?"#27ae60":pp>25?"#e67e22":"#e74c3c";
-  return `
-<div class="card">
-  <div class="stitle">Основное<div class="sline"></div></div>
-  <div class="g2">
-    <div>
-      <div style="font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:4px">ИМЯ</div>
-      <input class="inp" value="${S.name}" onchange="S.name=this.value;document.getElementById('charNameDisp').textContent=this.value">
-      <div style="margin-top:10px;font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:4px">УРОВЕНЬ</div>
-      <input class="inp" type="number" value="${S.level}" style="width:70px" onchange="S.level=+this.value;document.getElementById('lvlD').textContent='УР. '+S.level">
-      <div style="margin-top:10px;font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:2px">ОПЫТ</div>
-      <div class="bwrap"><div class="bfill" style="width:${ep}%;background:linear-gradient(90deg,#7a5c1e,#c9a84c)"></div></div>
-      <div class="row" style="margin-top:6px;gap:4px">
-        <input class="inp" type="number" value="${S.exp}" style="width:62px" onchange="S.exp=+this.value;render()">
-        <span style="color:#7a6a52">/</span>
-        <input class="inp" type="number" value="${S.expNext}" style="width:62px" onchange="S.expNext=+this.value;render()">
+  const pp=Math.min(100,Math.max(0,h>0?hp/h*100:0));
+  const ep=Math.min(100,S.expNext>0?S.exp/S.expNext*100:0);
+  const sc=charSecState;
+
+  // Attribute cells (2×3 compact grid)
+  const attrGrid=Object.entries(AT).map(([k,l])=>{
+    const base=S.attributes[k],fs=skBonus(l),fc=acBonus(l),total=base+fs+fc;
+    const bonusTip=fs>0||fc>0?` title="база: ${base}${fs>0?', +'+fs+' навыки':''}${fc>0?', +'+fc+' аксессуары':''}"`:' title="Изменить атрибуты"';
+    return `<div class="ac"${bonusTip} onclick="oAttr()">
+      <div class="av-total">${total}</div>
+      <div class="al">${l}</div>
+    </div>`;
+  }).join("");
+
+  // Armor sub-text
+  const eqArmor=S.armors.find(x=>x.equipped);
+  const armorSub=eqArmor?eqArmor.name+(eqArmor.armorValue?' (+'+eqArmor.armorValue+')':''):(a>0?'навыки / аксессуары':'нет доспеха');
+
+  // Professions section
+  const KCOLORS={Лечение:"tg-green",Алхимия:"tg-gold",Магия:"tg-blue",Бой:"tg-red"};
+  const profCards=S.professions.map(p=>{
+    const pp2=Math.min(100,p.expNext>0?p.exp/p.expNext*100:0);
+    const cnt=S.skills.filter(s=>s.source===p.name).length;
+    const displayName=p.uniqueName||p.name;
+    const klass=p.knowledgeArea?(KCOLORS[p.knowledgeArea]||'tg-dim'):'';
+    return `<div class="prof-card" onclick="oEditProf(${p.id})">
+      <div class="flex-between">
+        <div class="prof-name">${displayName}</div>
+        <span class="tg tg-gold" style="font-size:.5rem">УР. ${p.level}</span>
       </div>
-    </div>
-    <div>
-      <div style="font-size:.62rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:2px">ЗДОРОВЬЕ</div>
-      <div style="display:flex;align-items:baseline;gap:5px">
-        <span class="hpnum" style="color:${hc}">${hp}</span>
-        <span style="color:#7a6a52;font-size:.85rem">/ ${h}</span>
+      <div class="prof-sub mt6" style="display:flex;gap:4px;flex-wrap:wrap">
+        ${p.knowledgeArea?`<span class="tg ${klass}" style="font-size:.45rem">${p.knowledgeArea}</span>`:''}
+        ${cnt>0?`<span class="tg tg-dim" style="font-size:.45rem">${cnt} навык${cnt===1?'':'ов'}</span>`:''}
       </div>
-      <div class="bwrap"><div class="bfill" style="width:${pp}%;background:${hc}"></div></div>
-      <button class="btn" style="margin-top:8px;width:100%" onclick="openHpCalc()">⚔ Урон / Лечение</button>
-      <div style="margin-top:12px;font-size:.62rem;color:#7a6a52;letter-spacing:.1em">БРОНЯ</div>
-      <div class="snum">${a}</div>
-      ${armorBreakdown()}
-    </div>
-  </div>
-</div>
-<div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
-    <div class="stitle" style="margin-bottom:0">Атрибуты<div class="sline"></div></div>
-    <button class="btn" onclick="oAttr()">Изменить</button>
-  </div>
-  <div class="ag">
-    ${Object.entries(AT).map(([k,l])=>{
-      const base=S.attributes[k],fs=skBonus(l),fc=acBonus(l),total=base+fs+fc;
-      const hasB=fs>0||fc>0;
-      return `<div class="ac">
-        <div style="font-size:1rem">${AI[k]}</div>
-        <div class="av-total">${total}</div>
-        <div class="al">${l}</div>
-        ${hasB?`<div style="font-size:.62rem;color:#7a6a52;margin-top:4px;line-height:1.5">
-          <div>база: ${base}</div>
-          ${fs>0?`<div style="color:#27ae60">+${fs} навыки</div>`:""}
-          ${fc>0?`<div style="color:#27ae60">+${fc} аксессуары</div>`:""}
-        </div>`:""}
-      </div>`;
-    }).join("")}
-  </div>
-</div>
-<div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <div class="stitle" style="margin-bottom:0">Звания и титулы<div class="sline"></div></div>
-    <button class="btn" onclick="addTitle()">+</button>
-  </div>
-  ${S.titles.length===0?'<div style="color:#7a6a52;font-size:.8rem">Нет записей</div>':""}
-  ${S.titles.map(t=>`<div class="text-row">
-    <input class="editable" style="flex:1" value="${t.text}" onchange="S.titles=S.titles.map(x=>x.id===${t.id}?{...x,text:this.value}:x)">
-    <button class="bdng" onclick="S.titles=S.titles.filter(x=>x.id!==${t.id});render()">✕</button>
-  </div>`).join("")}
-</div>
-<div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <div class="stitle" style="margin-bottom:0">Особые свойства<div class="sline"></div></div>
-    <button class="btn" onclick="addSpecial()">+</button>
-  </div>
-  ${S.specialProps.length===0?'<div style="color:#7a6a52;font-size:.8rem">Нет записей</div>':""}
-  ${S.specialProps.map(t=>`<div class="text-row">
-    <input class="editable" style="flex:1" value="${t.text}" onchange="S.specialProps=S.specialProps.map(x=>x.id===${t.id}?{...x,text:this.value}:x)">
+      <div class="exp-block mt10" onclick="event.stopPropagation()">
+        <div class="bwrap" style="margin-top:0;height:3px"><div class="bfill exp-fill" style="width:${pp2}%"></div></div>
+        <div class="flex-between" style="margin-top:4px">
+          <span class="fs-xs text-dim">Опыт</span>
+          <span class="fs-xs text-gold">${p.exp} / ${p.expNext}</span>
+        </div>
+      </div>
+    </div>`;
+  }).join("");
+  const profAdd=S.professions.length<S.professionLimit
+    ?`<div class="prof-card grid-add" onclick="oAddPr()" style="min-height:80px">+</div>`:
+    '';
+
+  // Special props rows
+  const specialRows=S.specialProps.map(t=>`<div class="text-row">
+    <span style="color:var(--blue);font-size:.8rem">◈</span>
+    <input class="editable" value="${t.text}" onchange="S.specialProps=S.specialProps.map(x=>x.id===${t.id}?{...x,text:this.value}:x)">
     <button class="bdng" onclick="S.specialProps=S.specialProps.filter(x=>x.id!==${t.id});render()">✕</button>
-  </div>`).join("")}
-</div>
-<div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
-    <div class="stitle" style="margin-bottom:0">Ачивки<div class="sline"></div></div>
-    <button class="btn" onclick="oAddAch()">+</button>
-  </div>
-  ${S.achievements.length===0?'<div style="color:#7a6a52;font-size:.8rem">Нет ачивок</div>':""}
-  ${S.achievements.map(a=>`<div class="ach-item">
-    <div style="font-size:1rem;margin-top:1px">🏆</div>
-    <div style="flex:1">
-      <div style="font-weight:bold;font-size:.82rem">${a.name}</div>
-      ${a.property?`<div style="font-size:.72rem;color:#7a6a52;margin-top:2px">${a.property}</div>`:""}
+  </div>`).join("");
+
+  // Title rows
+  const titleRows=S.titles.map(t=>`<div class="text-row">
+    <span style="color:var(--gold-dim);font-size:.8rem">✦</span>
+    <input class="editable" value="${t.text}" onchange="S.titles=S.titles.map(x=>x.id===${t.id}?{...x,text:this.value}:x)">
+    <button class="bdng" onclick="S.titles=S.titles.filter(x=>x.id!==${t.id});render()">✕</button>
+  </div>`).join("");
+
+  // Achievement rows
+  const achItems=S.achievements.map(a=>`<div class="ach-item">
+    <div class="ach-icon">🏆</div>
+    <div class="ach-body">
+      <div class="ach-name">${a.name}</div>
+      ${a.property?`<div class="ach-prop">${a.property}</div>`:''}
     </div>
     <button class="bdng" onclick="S.achievements=S.achievements.filter(x=>x.id!==${a.id});render()">✕</button>
-  </div>`).join("")}
-</div>
-<div class="card">
-  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:${notesOpen?10:0}px;cursor:pointer" onclick="notesOpen=!notesOpen;render()">
-    <div class="stitle" style="margin-bottom:0">Заметки<div class="sline"></div></div>
-    <span style="color:#c9a84c;font-size:.8rem">${notesOpen?"▲":"▼"}</span>
+  </div>`).join("");
+
+  return `<div class="card card-accent">
+  <div class="stitle stitle-gold"><div class="orn-diamond"></div> Персонаж <div class="orn-diamond"></div><div class="sline"></div></div>
+  <div style="margin-bottom:12px">
+    <label class="fl" style="margin-top:0">Имя персонажа</label>
+    <input class="inp" value="${S.name}" oninput="S.name=this.value;var el=document.getElementById('charNameDisp');if(el)el.textContent=S.name||'Персонаж'">
   </div>
-  ${notesOpen?`<textarea class="inp" style="min-height:120px;resize:vertical" oninput="S.notes=this.value">${S.notes||""}</textarea>`:""}
+  <div style="display:grid;grid-template-columns:1fr 1.6fr;gap:14px">
+    <div class="ag ag-compact" style="grid-template-columns:repeat(2,1fr);align-content:start">
+      ${attrGrid}
+    </div>
+    <div style="display:flex;flex-direction:column;gap:10px;min-width:0;overflow:hidden">
+      <div class="lvl-badge" onclick="openExpModal()">Уровень ${S.level}</div>
+      <div class="exp-block" onclick="openExpModal()">
+        <div class="bwrap" style="margin-top:0"><div class="bfill exp-fill" style="width:${ep}%"></div></div>
+        <div class="flex-between" style="margin-top:5px">
+          <span class="fs-xs text-dim">Опыт</span>
+          <span class="fs-xs text-gold">${S.exp} / ${S.expNext}</span>
+        </div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;min-width:0">
+        <div class="stat-box hp hp-block" style="min-width:0;overflow:hidden" onclick="openHpModal()">
+          <div class="stat-box-label">Здоровье</div>
+          <div class="stat-box-val">${hp}<span style="font-size:.9rem;opacity:.5"> / ${h}</span></div>
+          <div class="bwrap mt6"><div class="bfill hp-fill" style="width:${pp}%"></div></div>
+          <div class="stat-box-sub">⚔ изменить HP</div>
+        </div>
+        <div class="stat-box" style="min-width:0;overflow:hidden">
+          <div class="stat-box-label">Броня</div>
+          <div class="stat-box-val" style="font-size:1.2rem">${a}</div>
+          <div class="stat-box-sub">${armorSub}</div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card${sc.prof?' collapsed':''}" id="sec-prof">
+  <div class="stitle stitle-clickable" onclick="toggleSection('sec-prof')">
+    <div class="orn-diamond"></div> Профессии <span class="text-dim fs-xs" style="font-weight:normal;letter-spacing:0">· ${S.professions.length}/${S.professionLimit}</span>
+    <div class="orn-diamond"></div><div class="sline"></div>
+    <span class="sec-grp-chevron">▼</span>
+  </div>
+  <div class="sec-grp-body">
+    ${S.professions.length===0?'<div style="color:var(--text-dim);font-size:.8rem;margin-bottom:10px">Нет профессий</div>':""}
+    <div class="prof-grid">${profCards}${profAdd}</div>
+  </div>
+</div>
+
+<div class="card${sc.props?' collapsed':''}" id="sec-props">
+  <div class="stitle stitle-clickable" onclick="toggleSection('sec-props')">
+    <div class="orn-diamond"></div> Особые свойства <div class="orn-diamond"></div><div class="sline"></div>
+    <span class="sec-grp-chevron">▼</span>
+  </div>
+  <div class="sec-grp-body">
+    ${S.specialProps.length===0?'<div style="color:var(--text-dim);font-size:.8rem">Нет записей</div>':""}
+    ${specialRows}
+    <button class="btn mt6" style="font-size:.55rem" onclick="addSpecial()">+ Добавить</button>
+  </div>
+</div>
+
+<div class="card${sc.titles?' collapsed':''}" id="sec-titles">
+  <div class="stitle stitle-clickable" onclick="toggleSection('sec-titles')">
+    <div class="orn-diamond"></div> Звания и титулы <div class="orn-diamond"></div><div class="sline"></div>
+    <span class="sec-grp-chevron">▼</span>
+  </div>
+  <div class="sec-grp-body">
+    ${S.titles.length===0?'<div style="color:var(--text-dim);font-size:.8rem">Нет записей</div>':""}
+    ${titleRows}
+    <button class="btn mt6" style="font-size:.55rem" onclick="addTitle()">+ Добавить</button>
+  </div>
+</div>
+
+<div class="card${sc.ach?' collapsed':''}" id="sec-ach">
+  <div class="stitle stitle-clickable" onclick="toggleSection('sec-ach')">
+    <div class="orn-diamond"></div> Достижения <div class="orn-diamond"></div><div class="sline"></div>
+    <span class="sec-grp-chevron">▼</span>
+  </div>
+  <div class="sec-grp-body">
+    ${S.achievements.length===0?'<div style="color:var(--text-dim);font-size:.8rem">Нет достижений</div>':""}
+    ${achItems}
+    <button class="btn mt6" style="font-size:.55rem" onclick="oAddAch()">+ Добавить</button>
+  </div>
+</div>
+
+<div class="card${sc.notes?' collapsed':''}" id="sec-notes">
+  <div class="stitle stitle-clickable" onclick="toggleSection('sec-notes')">
+    <div class="orn-diamond"></div> Заметки <div class="orn-diamond"></div><div class="sline"></div>
+    <span class="sec-grp-chevron">▼</span>
+  </div>
+  <div class="sec-grp-body">
+    <textarea class="inp" style="min-height:120px;resize:vertical" oninput="S.notes=this.value">${S.notes||""}</textarea>
+  </div>
 </div>`;
 }
 function addTitle(){S.titles.push({id:Date.now(),text:""});render();setTimeout(()=>{const els=document.querySelectorAll(".text-row .editable");if(els.length)els[els.length-1].focus();},50);}
@@ -808,29 +873,35 @@ function rProf(){
 function rSkills(){
   const sources=[...Object.values(AT),...S.professions.map(p=>p.name),"Другое"];
   const used=sources.filter(s=>S.skills.some(x=>x.source===s));
+  const typeClr={passive:"tg-blue",active:"tg-red"};
   return `<div class="card">
-    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
-      <div class="stitle" style="margin-bottom:0">Навыки персонажа<div class="sline"></div></div>
-      <button class="btn" onclick="oAddSk()">+ Навык</button>
-    </div>
-    ${S.skills.length===0?'<div style="color:#7a6a52;font-size:.8rem">Нет навыков</div>':""}
-    ${used.map(src=>`<div class="skill-group">
-      <div class="sg-title">${src} <span style="color:#4a3a22">(${S.skills.filter(s=>s.source===src).length})</span></div>
-      ${S.skills.filter(s=>s.source===src).map(s=>`<div class="ir irc">
-        <div style="display:flex;width:100%;justify-content:space-between;align-items:center">
-          <div class="row" style="flex-wrap:wrap;gap:4px">
-            <span style="font-weight:bold;font-size:.82rem">${s.name}</span>
-            ${tg(s.type==="passive"?"Пассивный":"Активный",s.type==="passive"?"#7a6a52":"#c9a84c")}
-            ${s.level?tg("УР."+s.level,"#7ec8e3"):""}
-          </div>
-          <button class="btn" style="padding:3px 8px;font-size:.66rem;flex-shrink:0" onclick="oEditSk(${s.id})">✏</button>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:14px">
+    <div class="stitle" style="margin-bottom:0"><div class="orn-diamond"></div> Навыки персонажа <div class="orn-diamond"></div><div class="sline"></div></div>
+    <button class="btn" onclick="oAddSk()">+ Навык</button>
+  </div>
+  ${S.skills.length===0?'<div style="color:var(--text-dim);font-size:.8rem">Нет навыков</div>':""}
+  ${used.map(src=>{
+    const group=S.skills.filter(s=>s.source===src);
+    return `<div class="grp-title">${src} · ${group.length} навык${group.length===1?'':'ов'}</div>
+    <div class="skills-grid" style="margin-bottom:12px">
+      ${group.map(s=>`<div class="skill-card" onclick="this.classList.toggle('expanded')">
+        <div class="skill-card-name">${s.name}</div>
+        <div class="row" style="gap:4px;flex-wrap:wrap;margin-top:2px">
+          <span class="tg ${typeClr[s.type]||'tg-dim'}" style="font-size:.48rem">${s.type==="passive"?"Пассивный":"Активный"}</span>
+          ${s.level?`<span class="tg tg-gold" style="font-size:.48rem">УР. ${s.level}</span>`:""}
         </div>
-        ${s.description?`<div style="font-size:.72rem;color:#7a6a52">${s.description}</div>`:""}
-        ${s.property?`<div style="font-size:.7rem;color:#27ae60">${s.property}</div>`:""}
-        ${s.comment?`<div style="font-size:.68rem;color:#5a4a35;font-style:italic">${s.comment}</div>`:""}
+        ${s.property?`<div class="skill-prop">${s.property}</div>`:""}
+        <div class="skill-hidden">
+          ${s.description?`<div style="font-size:.78rem;color:var(--text-dim);font-style:italic;margin-bottom:6px">${s.description}</div>`:""}
+          ${s.comment?`<div style="font-size:.68rem;color:var(--text-dim);font-style:italic;margin-bottom:6px">${s.comment}</div>`:""}
+          <button class="btn" style="font-size:.62rem;padding:6px 14px;touch-action:manipulation;width:100%" onclick="event.stopPropagation();oEditSk(${s.id})">Редактировать</button>
+        </div>
       </div>`).join("")}
-    </div>`).join("")}
-  </div>`;
+      <div class="skill-card grid-add" style="min-height:80px" onclick="oAddSk()">+</div>
+    </div>`;
+  }).join("")}
+  ${used.length===0?`<div class="skills-grid"><div class="skill-card grid-add" style="min-height:80px" onclick="oAddSk()">+</div></div>`:""}
+</div>`;
 }
 
 // ── INVENTORY TAB ─────────────────────────────────────────────────────────────
@@ -857,127 +928,176 @@ function itemQtyRow(arr,id,field){
 
 function rInv(){
   const u=invUsed(),mx=imax(),p=Math.min(100,u/mx*100);
+  const slotColor=u>=mx?"var(--red)":"var(--gold)";
   return `
-<div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px">
-    <div class="stitle" style="margin-bottom:0">Слоты<div class="sline"></div></div>
-    <span style="font-size:.75rem;color:${u>=mx?"#e05050":"#c9a84c"}">${u} / ${mx}</span>
+<div class="g2" style="margin-bottom:14px">
+  <div class="card" style="margin-bottom:0;cursor:pointer" onclick="toggleBackpack()">
+    <div class="stat-box-label">Слоты инвентаря</div>
+    <div class="row" style="gap:4px;align-items:baseline;justify-content:center;margin-top:4px">
+      <span class="snum" style="color:${slotColor}">${u}</span>
+      <span class="text-dim fs-xs">/ ${mx}</span>
+    </div>
+    <div class="bwrap mt6"><div class="bfill" style="width:${p}%;background:${u>=mx?"var(--red)":"linear-gradient(90deg,var(--gold-dark),var(--gold))"}"></div></div>
+    <div class="fs-xs text-dim" style="margin-top:5px;text-align:center">нажмите для настройки</div>
+    <div class="bp-settings" id="bp-settings" onclick="event.stopPropagation()">
+      <label class="fl" style="margin-top:0;text-align:center;display:block">Вместимость рюкзака</label>
+      <div class="row" style="justify-content:center;gap:8px;margin-top:6px">
+        <button class="btn" onclick="S.backpackSlots=Math.max(1,S.backpackSlots-1);render()">−</button>
+        <span style="color:var(--gold);font-size:.9rem;min-width:22px;text-align:center">${S.backpackSlots}</span>
+        <button class="btn" onclick="S.backpackSlots++;render()">+</button>
+      </div>
+      <div class="row" style="justify-content:center;gap:8px;margin-top:8px">
+        <label class="fs-xs text-dim" style="display:flex;align-items:center;gap:6px;cursor:pointer">
+          <input type="checkbox" ${S.backpackOn?"checked":""} onchange="S.backpackOn=this.checked;render()">
+          Рюкзак ${S.backpackOn?"надет":"снят"}
+        </label>
+      </div>
+    </div>
   </div>
-  <div class="bwrap"><div class="bfill" style="width:${p}%;background:${u>=mx?"#c0392b":"linear-gradient(90deg,#7a5c1e,#c9a84c)"}"></div></div>
-  <div style="margin-top:10px;display:flex;align-items:center;gap:10px;flex-wrap:wrap">
-    <label class="tgl"><input type="checkbox" ${S.backpackOn?"checked":""} onchange="S.backpackOn=this.checked;render()"><span class="tsl"></span></label>
-    <span style="font-size:.75rem;color:${S.backpackOn?"#27ae60":"#7a6a52"}">Рюкзак ${S.backpackOn?"надет":"снят"}</span>
-    ${S.backpackOn?`<button class="btn" style="padding:2px 7px" onclick="S.backpackSlots=Math.max(1,S.backpackSlots-1);render()">−</button>
-    <span style="color:#c9a84c;font-size:.8rem;min-width:18px;text-align:center">${S.backpackSlots}</span>
-    <button class="btn" style="padding:2px 7px" onclick="S.backpackSlots++;render()">+</button>`:""}
+  <div class="card" style="margin-bottom:0;cursor:pointer;text-align:center" onclick="openGoldModal()">
+    <div class="stat-box-label">Золото</div>
+    <div class="gold-num" style="margin-top:4px">${S.gold}</div>
+    <div class="stat-box-sub" style="margin-top:4px">💰 изменить</div>
   </div>
 </div>
-<div class="card">
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:10px">
-    <div class="stitle" style="margin-bottom:0">Золото<div class="sline"></div></div>
-    <button class="btn" onclick="openGoldCalc()">Калькулятор</button>
-  </div>
-  <div class="gold-num">${S.gold} <span style="font-size:1rem;color:#7a5c1e">зол.</span></div>
-</div>
-<div class="card">
-  ${invSec("weapons","Оружие",S.weapons,()=>
-    S.weapons.map(w=>`<div class="ir irc">
-      <div style="display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:6px">
-        <div style="flex:1">
-          <div class="row" style="flex-wrap:wrap;gap:4px">
-            <input class="editable" style="font-weight:bold;font-size:.84rem" value="${w.name}" onchange="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,name:this.value}:x)">
-            ${w.equipped?tg("Снаряжено","#27ae60"):""}
-          </div>
-        </div>
-        <div class="row" style="flex-shrink:0">
-          ${eqBtn(w.equipped,`S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,equipped:!x.equipped}:x);render()`)}
-          ${itemQtyRow(S.weapons,w.id,"S.weapons")}
-          <button class="bdng" onclick="S.weapons=S.weapons.filter(x=>x.id!==${w.id});render()">✕</button>
-        </div>
+${invCardSec("weapons","⚔ Оружие",S.weapons,
+    w=>`<div class="item-card${w.equipped?' equipped':''}" onclick="oEditInvItem('weapons',${w.id})">
+      <div class="item-card-name">${w.name||'—'}</div>
+      <div class="item-qty" onclick="event.stopPropagation()">
+        <button class="item-qty-btn" onclick="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
+        <span class="item-qty-val">${w.qty||1}</span>
+        <button class="item-qty-btn" onclick="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,qty:(x.qty||1)+1}:x);render()">+</button>
       </div>
-      <div style="font-size:.72rem;color:#7a6a52">Урон: <input class="editable" style="color:#c9a84c;width:70px" value="${w.damage}" onchange="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,damage:this.value}:x)"> &nbsp;Бонус: <input class="editable" style="color:#e67e22;width:70px" value="${w.bonusDamage}" onchange="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,bonusDamage:this.value}:x)"></div>
-      <div style="font-size:.7rem;color:#7a6a52">Свойство: <input class="editable" style="width:150px" value="${w.property}" onchange="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,property:this.value}:x)"></div>
-      <div style="font-size:.68rem;color:#5a4a35">Заметка: <input class="editable" style="width:150px;color:#5a4a35" value="${w.comment}" onchange="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,comment:this.value}:x)"></div>
-    </div>`).join("")+`<button class="btn" style="width:100%;margin-top:4px" onclick="oAddWpSmart()">+ Оружие</button>`
+      ${w.damage?`<div class="item-prop">⚔ ${w.damage}${w.bonusDamage?' · '+w.bonusDamage:''}</div>`:''}
+      ${w.property?`<div class="item-prop">${w.property}</div>`:''}
+      <button class="item-eq-btn${w.equipped?' on':''}" onclick="event.stopPropagation();S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,equipped:!x.equipped}:x);render()">${w.equipped?'Снять':'Надеть'}</button>
+    </div>`,
+    `<button class="btn" style="width:100%;margin-top:10px" onclick="oAddWpSmart()">+ Оружие</button>`
   )}
-  ${invSec("armors","Доспехи",S.armors,()=>
-    S.armors.map(a=>`<div class="ir irc">
-      <div style="display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:6px">
-        <div style="flex:1">
-          <div class="row" style="flex-wrap:wrap;gap:4px">
-            <input class="editable" style="font-weight:bold;font-size:.84rem" value="${a.name}" onchange="S.armors=S.armors.map(x=>x.id===${a.id}?{...x,name:this.value}:x)">
-            ${a.equipped?tg("Надето","#7ec8e3"):""}
-          </div>
-        </div>
-        <div class="row" style="flex-shrink:0">
-          ${eqBtn(a.equipped,`S.armors=S.armors.map(x=>x.id===${a.id}?{...x,equipped:!x.equipped}:{...x,equipped:false});render()`)}
-          <button class="bdng" onclick="S.armors=S.armors.filter(x=>x.id!==${a.id});render()">✕</button>
-        </div>
+${invCardSec("armors","🛡 Доспехи",S.armors,
+    a=>`<div class="item-card${a.equipped?' equipped':''}" onclick="oEditInvItem('armors',${a.id})">
+      <div class="item-card-name">${a.name||'—'}</div>
+      <div class="item-qty" onclick="event.stopPropagation()" style="justify-content:center">
+        <span class="item-qty-val" style="color:var(--blue)">+${a.armorValue||0} брон.</span>
       </div>
-      <div style="font-size:.72rem;color:#7a6a52">Броня: <input class="editable" type="number" style="color:#7ec8e3;width:45px" value="${a.armorValue}" onchange="S.armors=S.armors.map(x=>x.id===${a.id}?{...x,armorValue:+this.value}:x);render()"></div>
-      <div style="font-size:.7rem;color:#7a6a52">Свойство: <input class="editable" style="width:150px" value="${a.property}" onchange="S.armors=S.armors.map(x=>x.id===${a.id}?{...x,property:this.value}:x)"></div>
-      <div style="font-size:.68rem;color:#5a4a35">Заметка: <input class="editable" style="width:150px;color:#5a4a35" value="${a.comment}" onchange="S.armors=S.armors.map(x=>x.id===${a.id}?{...x,comment:this.value}:x)"></div>
-    </div>`).join("")+`<button class="btn" style="width:100%;margin-top:4px" onclick="oAddArSmart()">+ Доспех</button>`
+      ${a.property?`<div class="item-prop">${a.property}</div>`:''}
+      <button class="item-eq-btn${a.equipped?' on':''}" onclick="event.stopPropagation();S.armors=S.armors.map(x=>x.id===${a.id}?{...x,equipped:!x.equipped}:{...x,equipped:false});render()">${a.equipped?'Снять':'Надеть'}</button>
+    </div>`,
+    `<button class="btn" style="width:100%;margin-top:10px" onclick="oAddArSmart()">+ Доспех</button>`
   )}
-  ${invSec("accessories","Аксессуары",S.accessories,()=>
-    S.accessories.map(a=>`<div class="ir irc">
-      <div style="display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:6px">
-        <div style="flex:1">
-          <div class="row" style="flex-wrap:wrap;gap:4px">
-            <input class="editable" style="font-weight:bold;font-size:.84rem" value="${a.name}" onchange="S.accessories=S.accessories.map(x=>x.id===${a.id}?{...x,name:this.value}:x)">
-            ${a.equipped?tg("Надето","#9b59b6"):""}
-          </div>
-        </div>
-        <div class="row" style="flex-shrink:0">
-          ${eqBtn(a.equipped,`S.accessories=S.accessories.map(x=>x.id===${a.id}?{...x,equipped:!x.equipped}:x);render()`)}
-          <button class="bdng" onclick="S.accessories=S.accessories.filter(x=>x.id!==${a.id});render()">✕</button>
-        </div>
+${invCardSec("accessories","💍 Аксессуары",S.accessories,
+    a=>`<div class="item-card${a.equipped?' equipped':''}" onclick="oEditInvItem('accessories',${a.id})">
+      <div class="item-card-name">${a.name||'—'}</div>
+      <div class="item-qty" onclick="event.stopPropagation()" style="justify-content:center">
+        ${a.bonusTarget?`<span class="item-qty-val" style="font-size:.62rem;color:var(--green)">${a.bonusTarget}: +${a.bonusValue||0}</span>`:'<span class="item-qty-val" style="font-size:.6rem;opacity:.5">нет бонуса</span>'}
       </div>
-      <div style="font-size:.7rem;color:#7a6a52">Свойство: <input class="editable" style="width:150px" value="${a.property||""}" onchange="S.accessories=S.accessories.map(x=>x.id===${a.id}?{...x,property:this.value}:x)"></div>
-      <div style="font-size:.68rem;color:#5a4a35">Заметка: <input class="editable" style="width:150px;color:#5a4a35" value="${a.comment||""}" onchange="S.accessories=S.accessories.map(x=>x.id===${a.id}?{...x,comment:this.value}:x)"></div>
-    </div>`).join("")+`<button class="btn" style="width:100%;margin-top:4px" onclick="oAddAcSmart()">+ Аксессуар</button>`
+      ${a.property?`<div class="item-prop">${a.property}</div>`:''}
+      <button class="item-eq-btn${a.equipped?' on':''}" onclick="event.stopPropagation();S.accessories=S.accessories.map(x=>x.id===${a.id}?{...x,equipped:!x.equipped}:x);render()">${a.equipped?'Снять':'Надеть'}</button>
+    </div>`,
+    `<button class="btn" style="width:100%;margin-top:10px" onclick="oAddAcSmart()">+ Аксессуар</button>`
   )}
-  ${invSec("alch","Алхимические предметы",S.alchItems,()=>
-    S.alchItems.map(it=>`<div class="ir irc">
-      <div style="display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:6px">
-        <input class="editable" style="font-weight:bold;font-size:.84rem;flex:1" value="${it.name}" onchange="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,name:this.value}:x)">
-        <div class="row" style="flex-shrink:0">
-          ${itemQtyRow(S.alchItems,it.id,"S.alchItems")}
-          <button class="bdng" onclick="S.alchItems=S.alchItems.filter(x=>x.id!==${it.id});render()">✕</button>
-        </div>
+${invCardSec("alch","⚗ Алхимические",S.alchItems,
+    it=>`<div class="item-card" onclick="oEditInvItem('alch',${it.id})">
+      <div class="item-card-name">${it.name||'—'}</div>
+      <div class="item-qty" onclick="event.stopPropagation()">
+        <button class="item-qty-btn" onclick="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
+        <span class="item-qty-val">${it.qty||1}</span>
+        <button class="item-qty-btn" onclick="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,qty:(x.qty||1)+1}:x);render()">+</button>
       </div>
-      <div style="font-size:.72rem;color:#7a6a52">Ур: <input class="editable" type="number" style="color:#c9a84c;width:38px" value="${it.level}" onchange="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,level:+this.value}:x)"> &nbsp;Атрибут: <input class="editable" style="width:80px" value="${it.attribute}" onchange="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,attribute:this.value}:x)"></div>
-      <div style="font-size:.7rem;color:#7a6a52">Свойство: <input class="editable" style="width:150px" value="${it.property||""}" onchange="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,property:this.value}:x)"></div>
-      <div style="font-size:.68rem;color:#5a4a35">Заметка: <input class="editable" style="width:150px;color:#5a4a35" value="${it.comment||""}" onchange="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,comment:this.value}:x)"></div>
-    </div>`).join("")+`<button class="btn" style="width:100%;margin-top:4px" onclick="oAddAlch()">+ Алх. предмет</button>`
+      ${it.attribute?`<div class="item-prop">Ур.${it.level||1} · ${it.attribute}</div>`:''}
+      ${it.property?`<div class="item-prop">${it.property}</div>`:''}
+    </div>`,
+    `<button class="btn" style="width:100%;margin-top:10px" onclick="oAddAlch()">+ Алх. предмет</button>`
   )}
-  ${invSec("potions","Зелья и аптечки",S.potions,()=>
-    S.potions.map(it=>`<div class="ir irc">
-      <div style="display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:6px">
-        <input class="editable" style="font-weight:bold;font-size:.84rem;flex:1" value="${it.name}" onchange="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,name:this.value}:x)">
-        <div class="row" style="flex-shrink:0">
-          ${itemQtyRow(S.potions,it.id,"S.potions")}
-          <button class="bdng" onclick="S.potions=S.potions.filter(x=>x.id!==${it.id});render()">✕</button>
-        </div>
+${invCardSec("potions","🧪 Зелья",S.potions,
+    it=>`<div class="item-card" onclick="oEditInvItem('potions',${it.id})">
+      <div class="item-card-name">${it.name||'—'}</div>
+      <div class="item-qty" onclick="event.stopPropagation()">
+        <button class="item-qty-btn" onclick="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
+        <span class="item-qty-val">${it.qty||1}</span>
+        <button class="item-qty-btn" onclick="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,qty:(x.qty||1)+1}:x);render()">+</button>
       </div>
-      <div style="font-size:.7rem;color:#7a6a52">Свойство: <input class="editable" style="width:150px" value="${it.property||""}" onchange="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,property:this.value}:x)"></div>
-      <div style="font-size:.68rem;color:#5a4a35">Заметка: <input class="editable" style="width:150px;color:#5a4a35" value="${it.comment||""}" onchange="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,comment:this.value}:x)"></div>
-    </div>`).join("")+`<button class="btn" style="width:100%;margin-top:4px" onclick="oAddPotSmart()">+ Зелье</button>`
+      ${it.property?`<div class="item-prop">${it.property}</div>`:''}
+    </div>`,
+    `<button class="btn" style="width:100%;margin-top:10px" onclick="oAddPotSmart()">+ Зелье</button>`
   )}
-  ${invSec("misc","Остальное",S.misc,()=>
-    S.misc.map(it=>`<div class="ir irc">
-      <div style="display:flex;width:100%;justify-content:space-between;align-items:flex-start;gap:6px">
-        <input class="editable" style="font-weight:bold;font-size:.84rem;flex:1" value="${it.name}" onchange="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,name:this.value}:x)">
-        <div class="row" style="flex-shrink:0">
-          ${itemQtyRow(S.misc,it.id,"S.misc")}
-          <button class="bdng" onclick="S.misc=S.misc.filter(x=>x.id!==${it.id});render()">✕</button>
-        </div>
+${invCardSec("misc","📦 Остальное",S.misc,
+    it=>`<div class="item-card" onclick="oEditInvItem('misc',${it.id})">
+      <div class="item-card-name">${it.name||'—'}</div>
+      <div class="item-qty" onclick="event.stopPropagation()">
+        <button class="item-qty-btn" onclick="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
+        <span class="item-qty-val">${it.qty||1}</span>
+        <button class="item-qty-btn" onclick="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,qty:(x.qty||1)+1}:x);render()">+</button>
       </div>
-      <div style="font-size:.7rem;color:#7a6a52">Свойство: <input class="editable" style="width:150px" value="${it.property||""}" onchange="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,property:this.value}:x)"></div>
-      <div style="font-size:.68rem;color:#5a4a35">Заметка: <input class="editable" style="width:150px;color:#5a4a35" value="${it.comment||""}" onchange="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,comment:this.value}:x)"></div>
-    </div>`).join("")+`<button class="btn" style="width:100%;margin-top:4px" onclick="oAddMiscSmart()">+ Предмет</button>`
+      ${it.property?`<div class="item-prop">${it.property}</div>`:''}
+    </div>`,
+    `<button class="btn" style="width:100%;margin-top:10px" onclick="oAddMiscSmart()">+ Предмет</button>`
   )}
-</div>`;
+`;
+}
+
+function invCardSec(key,title,items,cardFn,addBtn){
+  const open=invOpen[key];
+  return `<div class="card${open?'':' collapsed'}" id="inv-sec-${key}" style="margin-bottom:14px">
+    <div class="stitle stitle-clickable" onclick="invOpen['${key}']=!invOpen['${key}'];render()">
+      <div class="orn-diamond"></div> ${title} <span class="text-dim fs-xs" style="font-weight:normal;letter-spacing:0">· ${items.length}</span>
+      <div class="orn-diamond"></div><div class="sline"></div>
+      <span class="sec-grp-chevron">▼</span>
+    </div>
+    <div class="sec-grp-body">
+      <div class="items-grid">
+        ${items.map(cardFn).join("")}
+        ${addBtn?'':`<div class="item-card grid-add" style="min-height:88px">${title.split(' ')[0]}</div>`}
+      </div>
+      ${addBtn||''}
+    </div>
+  </div>`;
+}
+
+function oEditInvItem(type,id){
+  const arrMap={weapons:S.weapons,armors:S.armors,accessories:S.accessories,alch:S.alchItems,potions:S.potions,misc:S.misc};
+  const arr=arrMap[type];
+  const it=arr&&arr.find(x=>x.id===id);
+  if(!it)return;
+  var f=(k,v)=>`<label class="fl">${k}</label><input class="inp" id="eii_${k.replace(/\s/g,'_')}" value="${v||''}">`;
+  var fn=(k,v,t)=>`<label class="fl">${k}</label><input class="inp" type="${t||'text'}" id="eii_${k.replace(/\s/g,'_')}" value="${v||''}">`;
+  var html=`<div class="mtitle">Редактировать: ${it.name||'предмет'}</div>`;
+  html+=fn('Название',it.name);
+  if(type==='weapons'){html+=fn('Урон',it.damage)+fn('Бонусный урон',it.bonusDamage);}
+  if(type==='armors'){html+=fn('Броня',it.armorValue,'number');}
+  if(type==='accessories'){
+    html+=`<label class="fl">Бонус к</label><select class="inp" id="eii_bonusTarget">`+["","Броня","Максимум HP","Урон","Бонусный урон","Сила","Ловкость","Живучесть","Интеллект","Торговля","Талант","Мана"].map(x=>`<option${x===it.bonusTarget?' selected':''}>${x}</option>`).join('')+`</select>`;
+    html+=fn('Значение бонуса',it.bonusValue,'number');
+  }
+  if(type==='alch'){html+=fn('Уровень',it.level,'number')+fn('Атрибут',it.attribute);}
+  html+=f('Свойство',it.property)+f('Заметка',it.comment);
+  html+=`<div class="row" style="margin-top:14px">
+    <button class="bpri" onclick="_saveInvItem('${type}',${id})">Сохранить</button>
+    <button class="bdng" onclick="_deleteInvItem('${type}',${id})">✕ Удалить</button>
+    <button class="btn" onclick="closeMod()">Отмена</button>
+  </div>`;
+  openMod(html);
+}
+function _deleteInvItem(type,id){
+  var keyMap={weapons:'weapons',armors:'armors',accessories:'accessories',alch:'alchItems',potions:'potions',misc:'misc'};
+  var k=keyMap[type];if(!k)return;
+  S[k]=S[k].filter(x=>x.id!==id);
+  closeMod();render();ntf('Удалено','#e05050');
+}
+function _saveInvItem(type,id){
+  var g=k=>document.getElementById('eii_'+k.replace(/\s/g,'_'));
+  var v=k=>(g(k)?g(k).value:'');
+  var arrKey={weapons:'weapons',armors:'armors',accessories:'accessories',alch:'alchItems',potions:'potions',misc:'misc'}[type];
+  S[arrKey]=S[arrKey].map(x=>{
+    if(x.id!==id)return x;
+    var u={...x,name:v('Название'),property:v('Свойство'),comment:v('Заметка')};
+    if(type==='weapons'){u.damage=v('Урон');u.bonusDamage=v('Бонусный_урон');}
+    if(type==='armors'){u.armorValue=+v('Броня')||0;}
+    if(type==='accessories'){u.bonusTarget=v('Бонус_к');u.bonusValue=+v('Значение_бонуса')||0;}
+    if(type==='alch'){u.level=+v('Уровень')||1;u.attribute=v('Атрибут');}
+    return u;
+  });
+  closeMod();render();ntf('Сохранено','#27ae60');
 }
 
 // ── ALCHEMY TAB ───────────────────────────────────────────────────────────────
@@ -1089,6 +1209,26 @@ function alchSect(key,title,inner,extraHdr){
 }
 
 function rAlch(){
+  // level → tag color
+  function lvlTg(lv){if(lv>=4)return'tg-red';if(lv===3)return'tg-gold';if(lv===2)return'tg-blue';return'tg-dim';}
+
+  // section card wrapper — collapse driven by alchSectOpen
+  function aCard(key,title,body,extra){
+    var col=!alchSectOpen[key]?' collapsed':'';
+    return '<div class="card'+col+'">'
+      +'<div class="flex-between" style="margin-bottom:0">'
+      +'<div class="stitle stitle-clickable" style="margin-bottom:0" onclick="alchSectOpen.'+key+'=!alchSectOpen.'+key+';render()">'
+      +'<div class="orn-diamond"></div> '+title+' <div class="orn-diamond"></div>'
+      +'<span class="sec-grp-chevron">▼</span>'
+      +'</div>'
+      +(extra?'<div onclick="event.stopPropagation()" style="flex-shrink:0">'+extra+'</div>':'')
+      +'</div>'
+      +'<div class="sec-grp-body" style="margin-top:10px">'+body+'</div>'
+      +'</div>';
+  }
+  const lockedMsg=function(skill){return '<div style="color:var(--text-dim);font-size:.78rem;padding:8px">🔒 Доступно при наличии навыка «'+skill+'»</div>';};
+
+  // ── 1. INVENTORY ──────────────────────────────────────────────────────────────
   let invSorted=[...S.alchInventory];
   invSorted.sort((a,b)=>{
     const ia=alchFind(a.dbId),ib=alchFind(b.dbId);if(!ia||!ib)return 0;
@@ -1097,189 +1237,157 @@ function rAlch(){
     if(alchInvSortBy==="qty")return alchInvSortDir*(a.qty-b.qty);
     return alchInvSortDir*ia.name.localeCompare(ib.name,"ru");
   });
-  let invGroups;
+  // build inventory groups
+  var invGroups;
   if(!alchInvGroupBy){invGroups=[{groupKey:"",items:invSorted}];}
-  else{const m={};invSorted.forEach(e=>{const it=alchFind(e.dbId);const k=!it?"?":(alchInvGroupBy==="level"?String(it.level):it.attribute);m[k]=m[k]||[];m[k].push(e);});invGroups=Object.entries(m).map(([g,items])=>({groupKey:g,items})).sort((a,b)=>alchInvGroupBy==="level"?Number(a.groupKey)-Number(b.groupKey):a.groupKey.localeCompare(b.groupKey,"ru"));}
-
-  let invRows="";
+  else{
+    const m={};
+    invSorted.forEach(e=>{const it=alchFind(e.dbId);const k=!it?"?":(alchInvGroupBy==="level"?String(it.level):it.attribute);m[k]=m[k]||[];m[k].push(e);});
+    invGroups=Object.entries(m).map(([g,items])=>({groupKey:g,items})).sort((a,b)=>alchInvGroupBy==="level"?Number(a.groupKey)-Number(b.groupKey):a.groupKey.localeCompare(b.groupKey,"ru"));
+  }
+  let invCardsHtml="";
   for(const g of invGroups){
-    if(alchInvGroupBy)invRows+='<tr style="background:#1a1510"><td colspan="5" style="font-size:.65rem;color:#c9a84c;letter-spacing:.12em;padding:5px 8px">'+(alchInvGroupBy==="level"?"УР. ":"")+g.groupKey+'</td></tr>';
+    if(alchInvGroupBy&&g.groupKey)invCardsHtml+='<div class="grp-title" style="grid-column:1/-1">'+(alchInvGroupBy==="level"?"УР. ":"")+g.groupKey+'</div>';
     for(const entry of g.items){
       const it=alchFind(entry.dbId);if(!it)continue;
-      invRows+='<tr>'
-        +'<td style="text-align:left;padding:6px 8px">'+it.name+'</td>'
-        +'<td style="text-align:center">'+it.level+'</td>'
-        +'<td style="text-align:center">'+it.attribute+'</td>'
-        +'<td style="white-space:nowrap;text-align:center">'
-        +'<button class="btn" style="padding:2px 7px" onclick="alchQtyChange(\''+entry.dbId+'\',-1)">−</button>'
-        +' <span style="color:#c9a84c;min-width:20px;display:inline-block;text-align:center">'+entry.qty+'</span> '
-        +'<button class="btn" style="padding:2px 7px" onclick="alchQtyChange(\''+entry.dbId+'\',1)">+</button>'
-        +'</td>'
-        +'<td style="text-align:center"><button class="btn" style="padding:3px 8px;font-size:.68rem" onclick="alchProcessOne(\''+entry.dbId+'\')">Обработать</button></td>'
-        +'</tr>';
+      invCardsHtml+='<div class="alch-item-card">'
+        +'<div class="alch-item-name">'+it.name+'</div>'
+        +'<div class="alch-item-tags"><span class="tg '+lvlTg(it.level)+'">Ур. '+it.level+'</span><span class="tg tg-dim">'+it.attribute+'</span></div>'
+        +'<div style="display:flex;align-items:center;justify-content:center;gap:3px;margin-top:auto">'
+        +'<button class="item-qty-btn" onclick="alchQtyChange(\''+entry.dbId+'\',-1)">−</button>'
+        +'<span class="item-qty-val">'+entry.qty+'</span>'
+        +'<button class="item-qty-btn" onclick="alchQtyChange(\''+entry.dbId+'\',1)">+</button>'
+        +'</div>'
+        +'<button class="alch-process-btn" onclick="alchProcessOne(\''+entry.dbId+'\')">⚗ Обработать</button>'
+        +'</div>';
     }
   }
+  if(!invCardsHtml)invCardsHtml='<div style="grid-column:1/-1;color:var(--text-dim);font-style:italic;padding:8px;text-align:center;font-size:.78rem">Инвентарь пуст</div>';
 
-  const groups=alchSortedFiltered();
-  let baseRows="";
-  for(const g of groups){
-    if(alchBaseGroupBy)baseRows+='<tr style="background:#1a1510"><td colspan="5" style="font-size:.65rem;color:#c9a84c;letter-spacing:.12em;padding:5px 8px">'+g.groupKey+'</td></tr>';
-    for(const it of g.items){
-      const inInv=S.alchInventory.find(x=>x.dbId===it.id);
-      baseRows+='<tr>'
-        +'<td style="text-align:left;padding:6px 8px">'+it.name+'</td>'
-        +'<td style="text-align:center">'+it.level+'</td>'
-        +'<td style="text-align:center">'+it.attribute+'</td>'
-        +'<td style="text-align:center">'+(inInv?inInv.qty:0)+'</td>'
-        +'<td style="text-align:center;white-space:nowrap">'
-        +'<button class="btn" style="padding:3px 7px;font-size:.68rem" onclick="alchQtyChange(\''+it.id+'\',1)">+ Инв.</button> '
-        +'<button class="bdng" onclick="alchDelFromDB(\''+it.id+'\')">✕</button>'
-        +'</td></tr>';
-    }
-  }
-  if(!baseRows)baseRows='<tr><td colspan="5" style="color:#7a6a52;font-style:italic;padding:10px">База пуста</td></tr>';
-
-  let procRows=S.procRecipes.map((r,i)=>{
-    const src=alchFind(r.srcId),res=alchFind(r.resId);
-    return '<tr><td style="text-align:left;padding:5px 8px">'+(src?alchLabel(src):"(удалён)")+'</td>'
-      +'<td style="text-align:left;padding:5px 8px">'+(res?alchLabel(res):"(удалён)")+'</td>'
-      +'<td><button class="bdng" onclick="S.procRecipes.splice('+i+',1);render()">✕</button></td></tr>';
-  }).join("")||'<tr><td colspan="3" style="color:#7a6a52;font-style:italic;padding:8px">Нет рецептов</td></tr>';
-
-  function recipeRows(arr,arrName){
-    return arr.map((r,i)=>{
-      const prod=alchFind(r.resultId),inInv=prod?S.alchInventory.find(x=>x.dbId===r.resultId):null;
-      const reagText=r.reagentIds.map(id=>{const it=alchFind(id);return it?it.name:"?";}).join(" + ");
-      return '<tr><td style="text-align:left;padding:5px 8px">'+(prod?alchLabel(prod):"(удалён)")+'</td>'
-        +'<td style="text-align:left;padding:5px 8px;color:#7a6a52;font-size:.78rem">'+reagText+'</td>'
-        +'<td style="text-align:center">'+(inInv?inInv.qty:0)+'</td>'
-        +'<td style="white-space:nowrap">'
-        +'<button class="btn" style="padding:3px 7px;font-size:.68rem" onclick="alchCreate('+i+','+arrName+')">Создать</button> '
-        +'<button class="bdng" onclick="'+arrName+'.splice('+i+',1);render()">✕</button>'
-        +'</td></tr>';
-    }).join("")||'<tr><td colspan="4" style="color:#7a6a52;font-style:italic;padding:8px">Нет рецептов</td></tr>';
-  }
-
-  const dbOpts=S.alchDB.map(it=>'<option value="'+it.id+'">'+alchLabel(it)+'</option>').join("");
-  let reagSelects="",circleSelects="";
-  for(let i=0;i<alchReagentCount;i++)reagSelects+='<select class="inp" style="width:auto;margin-bottom:4px" id="alchReag_'+i+'">'+dbOpts+'</select> ';
-  for(let i=0;i<alchCircleReagentCount;i++)circleSelects+='<select class="inp" style="width:auto;margin-bottom:4px" id="alchCircReag_'+i+'">'+dbOpts+'</select> ';
-
-  const histColors={add:"#27ae60",update:"#7ec8e3",del:"#e67e22",success:"#27ae60",error:"#e05050",synth:"#9b59b6",recipe:"#c9a84c"};
-  const histHtml=S.alchHistory.length===0
-    ?'<div style="color:#7a6a52;font-size:.78rem;padding:6px">Нет событий</div>'
-    :S.alchHistory.slice(0,80).map(e=>'<div style="font-size:.72rem;padding:3px 0;border-bottom:1px solid #1a1510;color:'+(histColors[e.type]||"#7a6a52")+'">'
-      +'<span style="color:#5a4a35;font-family:monospace">'+alchTimePretty(e.t)+'</span>'
-      +' <span style="font-weight:bold">'+e.txt+'</span>'
-      +(e.extra?' <span style="color:#7a6a52">'+e.extra+'</span>':"")
-      +'</div>').join("");
-
-  const thS='style="cursor:pointer;user-select:none"';
-  const thSC='style="cursor:pointer;user-select:none;text-align:center"';
-
-  const invCard='<div class="card">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
-    +'<span class="inv-sec-title">Инвентарь алхимика</span>'
-    +'<div class="row" style="gap:6px">'
-    +'<button class="bpri" style="font-size:.72rem;padding:4px 10px;border-radius:20px" onclick="oSetAlchChance()">🎲 '+S.alchSuccessChance+'%</button>'
-    +'<button class="btn" style="padding:4px 8px;font-size:.8rem" title="Группировка" onclick="alchInvGroupVisible=!alchInvGroupVisible;render()">⚙</button>'
-    +'</div></div>'
-    +(alchInvGroupVisible
-      ?'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:6px 8px;background:#0d0b09;border-radius:6px;border:1px solid #242018">'
-        +'<span style="font-size:.68rem;color:#7a6a52;flex-shrink:0">Группировка:</span>'
-        +'<select class="inp" style="width:auto" onchange="alchInvGroupBy=this.value;render()">'
-        +'<option value=""'+(alchInvGroupBy===""?" selected":"")+'>Нет</option>'
-        +'<option value="level"'+(alchInvGroupBy==="level"?" selected":"")+'>Уровень</option>'
-        +'<option value="attribute"'+(alchInvGroupBy==="attribute"?" selected":"")+'>Атрибут</option>'
-        +'</select></div>'
-      :"")
-    +'<div style="overflow-x:auto"><table class="alch-tbl">'
-    +'<tr>'
-    +'<th '+thS+' onclick="setAlchInvSort(\'name\')" style="cursor:pointer;user-select:none;text-align:left">НАЗВАНИЕ'+sa("name",alchInvSortBy,alchInvSortDir)+'</th>'
-    +'<th '+thSC+' onclick="setAlchInvSort(\'level\')">УР.'+sa("level",alchInvSortBy,alchInvSortDir)+'</th>'
-    +'<th '+thSC+' onclick="setAlchInvSort(\'attribute\')">АТРИБУТ'+sa("attribute",alchInvSortBy,alchInvSortDir)+'</th>'
-    +'<th '+thSC+' onclick="setAlchInvSort(\'qty\')">КОЛ-ВО'+sa("qty",alchInvSortBy,alchInvSortDir)+'</th>'
-    +'<th style="text-align:center">ДЕЙСТВИЕ</th>'
-    +'</tr>'
-    +(invRows||'<tr><td colspan="5" style="color:#7a6a52;font-style:italic;padding:10px">Инвентарь пуст</td></tr>')
-    +'</table></div></div>';
-
-  const procInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding:8px;background:#0d0b09;border-radius:6px;border:1px solid #1a1510">'
-    +'<div><div class="fl">Исходник</div><select class="inp" id="procSrc" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
-    +'<div><div class="fl">Результат</div><select class="inp" id="procRes" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
-    +'<button class="btn" onclick="saveProcRecipe()">Сохранить</button></div>'
-    +'<div style="overflow-x:auto"><table class="alch-tbl">'
-    +'<tr><th style="text-align:left">ИСХОДНИК</th><th style="text-align:left">РЕЗУЛЬТАТ</th><th></th></tr>'
-    +procRows+'</table></div>';
-
-  const alchInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding:8px;background:#0d0b09;border-radius:6px;border:1px solid #1a1510">'
-    +'<div><div class="fl">Результат</div><select class="inp" id="alchResId" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
-    +'<div><div class="fl">Реагенты ('+alchReagentCount+')</div><div style="display:flex;flex-wrap:wrap;gap:4px">'+reagSelects+'</div></div>'
-    +'<div class="row"><button class="btn" style="padding:3px 8px" onclick="if(alchReagentCount&lt;6)alchReagentCount++;render()">+</button>'
-    +'<button class="btn" style="padding:3px 8px" onclick="if(alchReagentCount&gt;2)alchReagentCount--;render()">−</button>'
-    +'<button class="btn" onclick="saveAlchRecipe(\'normal\')">Сохранить</button></div></div>'
-    +'<div style="overflow-x:auto"><table class="alch-tbl">'
-    +'<tr><th style="text-align:left">РЕЗУЛЬТАТ</th><th style="text-align:left">РЕАГЕНТЫ</th><th>В ИНВ.</th><th></th></tr>'
-    +recipeRows(S.alchRecipes,"S.alchRecipes")+'</table></div>';
-
-  const circleInner='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding:8px;background:#0d0b09;border-radius:6px;border:1px solid #1a1510">'
-    +'<div><div class="fl">Результат</div><select class="inp" id="alchCircResId" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
-    +'<div><div class="fl">Реагенты ('+alchCircleReagentCount+')</div><div style="display:flex;flex-wrap:wrap;gap:4px">'+circleSelects+'</div></div>'
-    +'<div class="row"><button class="btn" style="padding:3px 8px" onclick="if(alchCircleReagentCount&lt;6)alchCircleReagentCount++;render()">+</button>'
-    +'<button class="btn" style="padding:3px 8px" onclick="if(alchCircleReagentCount&gt;2)alchCircleReagentCount--;render()">−</button>'
-    +'<button class="btn" onclick="saveAlchRecipe(\'circle\')">Сохранить</button></div></div>'
-    +'<div style="overflow-x:auto"><table class="alch-tbl">'
-    +'<tr><th style="text-align:left">РЕЗУЛЬТАТ</th><th style="text-align:left">РЕАГЕНТЫ</th><th>В ИНВ.</th><th></th></tr>'
-    +recipeRows(S.alchCircleRecipes,"S.alchCircleRecipes")+'</table></div>';
-
-  const baseSearch='<input class="inp" placeholder="Поиск..." style="width:110px" oninput="alchBaseSearch=this.value;render()" value="'+alchBaseSearch+'">';
-  const baseExtraHdr=baseSearch
-    +'<button class="btn" style="padding:3px 8px;font-size:.72rem" onclick="oAddAlchDB()">+ Добавить</button>'
-    +'<button class="btn" style="padding:4px 8px;font-size:.8rem" title="Группировка" onclick="alchBaseGroupVisible=!alchBaseGroupVisible;render()">⚙</button>';
-
-  const baseGroupRow=alchBaseGroupVisible
-    ?'<div style="display:flex;gap:8px;align-items:center;margin-bottom:8px;padding:6px 8px;background:#0d0b09;border-radius:6px;border:1px solid #1a1510">'
-      +'<span style="font-size:.68rem;color:#7a6a52;flex-shrink:0">Группировка:</span>'
-      +'<select class="inp" style="width:auto" onchange="alchBaseGroupBy=this.value;render()">'
-      +'<option value=""'+(alchBaseGroupBy===""?" selected":"")+'>Нет</option>'
-      +'<option value="level"'+(alchBaseGroupBy==="level"?" selected":"")+'>Уровень</option>'
-      +'<option value="attribute"'+(alchBaseGroupBy==="attribute"?" selected":"")+'>Атрибут</option>'
-      +'</select></div>'
-    :"";
-
-  const baseInner=baseGroupRow
-    +'<div style="overflow-x:auto"><table class="alch-tbl">'
-    +'<tr>'
-    +'<th '+thS+' onclick="setAlchBaseSort(\'name\')" style="cursor:pointer;user-select:none;text-align:left">НАЗВАНИЕ'+sa("name",alchBaseSortCol,alchBaseSortDir)+'</th>'
-    +'<th '+thSC+' onclick="setAlchBaseSort(\'level\')">УР.'+sa("level",alchBaseSortCol,alchBaseSortDir)+'</th>'
-    +'<th '+thSC+' onclick="setAlchBaseSort(\'attribute\')">АТРИБУТ'+sa("attribute",alchBaseSortCol,alchBaseSortDir)+'</th>'
-    +'<th style="text-align:center">В ИНВ.</th>'
-    +'<th></th>'
-    +'</tr>'
-    +baseRows+'</table></div>';
-
-  const histInner='<div style="max-height:200px;overflow-y:auto;background:#0a0908;border:1px solid #242018;border-radius:6px;padding:8px">'+histHtml+'</div>';
-  const histCard='<div style="margin-bottom:4px">'
-    +'<div class="inv-sec-hdr" onclick="alchSectOpen.hist=!alchSectOpen.hist;render()" style="cursor:pointer">'
-    +'<span class="inv-sec-title">История</span>'
-    +'<div class="row" style="gap:6px" onclick="event.stopPropagation()">'
-    +'<button class="bdng" style="padding:2px 7px;font-size:.68rem" onclick="S.alchHistory=[];render()">Очистить</button>'
-    +'<span style="color:#c9a84c;font-size:.8rem;cursor:pointer" onclick="alchSectOpen.hist=!alchSectOpen.hist;render()">'+(alchSectOpen.hist?"▲":"▼")+'</span>'
-    +'</div></div>'
-    +(alchSectOpen.hist?'<div style="margin-bottom:8px">'+histInner+'</div>':"")
+  const invGrpPanel='<div class="alch-filter-panel'+(alchInvGroupVisible?" open":"")+'">'
+    +'<div class="alch-filter-row"><span class="fs-xs text-dim">Группировка:</span>'
+    +'<button class="alch-ctrl-btn'+(alchInvGroupBy===""?" active":"")+'" onclick="alchInvGroupBy=\'\';render()">Нет</button>'
+    +'<button class="alch-ctrl-btn'+(alchInvGroupBy==="level"?" active":"")+'" onclick="alchInvGroupBy=\'level\';render()">По уровню</button>'
+    +'<button class="alch-ctrl-btn'+(alchInvGroupBy==="attribute"?" active":"")+'" onclick="alchInvGroupBy=\'attribute\';render()">По атрибуту</button>'
+    +'</div></div>';
+  const invSortPanel='<div class="alch-filter-panel'+(alchInvSortVisible?" open":"")+'">'
+    +'<div class="alch-filter-row"><span class="fs-xs text-dim">Сортировка:</span>'
+    +'<button class="alch-ctrl-btn'+(alchInvSortBy==="name"&&alchInvSortDir===1?" active":"")+'" onclick="alchInvSortBy=\'name\';alchInvSortDir=1;render()">По названию ↑</button>'
+    +'<button class="alch-ctrl-btn'+(alchInvSortBy==="level"?" active":"")+'" onclick="alchInvSortBy=\'level\';alchInvSortDir=1;render()">По уровню ↑</button>'
+    +'<button class="alch-ctrl-btn'+(alchInvSortBy==="qty"?" active":"")+'" onclick="alchInvSortBy=\'qty\';alchInvSortDir=-1;render()">По кол-ву</button>'
+    +'</div></div>';
+  const invBody=invGrpPanel+invSortPanel+'<div class="alch-items-grid" style="margin-top:6px">'+invCardsHtml+'</div>';
+  const invExtraHdr='<div class="alch-ctrl-bar">'
+    +'<button class="alch-icon-btn'+(alchInvGroupVisible?" active":"")+'" onclick="alchInvGroupVisible=!alchInvGroupVisible;render()" title="Группировка">⊞</button>'
+    +'<button class="alch-icon-btn'+(alchInvSortVisible?" active":"")+'" onclick="alchInvSortVisible=!alchInvSortVisible;render()" title="Сортировка">↕</button>'
+    +'<button class="btn" style="font-size:.5rem;flex-shrink:0" onclick="oSetAlchChance()">🎲 '+S.alchSuccessChance+'%</button>'
     +'</div>';
+
+  // ── 2. RECIPE CARDS (базовая реакция + круг) ──────────────────────────────────
+  function recipeCardsFn(arr,arrName){
+    if(!arr.length)return '<div style="color:var(--text-dim);font-size:.78rem;padding:8px;text-align:center;font-style:italic">Нет рецептов</div>';
+    return arr.map((r,i)=>{
+      const prod=alchFind(r.resultId);
+      const reagHtml=r.reagentIds.map(rid=>{const it=alchFind(rid);return '<div class="alch-recipe-ing">'+(it?'<span class="tg tg-dim" style="font-size:.42rem;padding:1px 5px">Ур.'+it.level+'</span>'+it.name:'?')+'</div>';}).join('');
+      return '<div class="alch-recipe-card" onclick="alchCreate('+i+','+arrName+')">'
+        +'<button class="alch-recipe-del" onclick="event.stopPropagation();'+arrName+'.splice('+i+',1);render()">✕</button>'
+        +'<div><div class="alch-recipe-result">'+(prod?prod.name:'(удалён)')+'</div>'
+        +(prod?'<div class="alch-item-tags" style="margin-top:3px"><span class="tg '+lvlTg(prod.level)+'">Ур. '+prod.level+'</span><span class="tg tg-dim">'+prod.attribute+'</span></div>':'')
+        +'</div>'
+        +'<div class="alch-recipe-sep"></div>'
+        +'<div class="alch-recipe-ingredients">'+reagHtml+'</div>'
+        +'</div>';
+    }).join('');
+  }
+  const addRecipeBtn='<button class="btn" style="font-size:.52rem;flex-shrink:0;background:var(--alch-btn-bg);border-color:var(--alch-btn-bd);color:var(--alch-btn-clr)" onclick="openAlchRecipeModal()">+ Рецепт</button>';
 
   const hasProcessing=S.skills.some(s=>s.name==="Обработка алхимических ингредиентов");
   const hasBaseReaction=S.skills.some(s=>s.name==="Базовая алхимическая реакция");
   const hasCircle=S.skills.some(s=>s.name==="Алхимический круг");
-  const lockedMsg=(skill)=>'<div style="color:#7a6a52;font-size:.78rem;padding:8px">🔒 Доступно при наличии навыка «'+skill+'»</div>';
 
-  return invCard
-    +alchSect("proc","Рецепты обработки",hasProcessing?procInner:lockedMsg("Обработка алхимических ингредиентов"))
-    +alchSect("recipes","Базовая алхимическая реакция",hasBaseReaction?alchInner:lockedMsg("Базовая алхимическая реакция"))
-    +alchSect("circle","Алхимический круг",hasCircle?circleInner:lockedMsg("Алхимический круг"))
-    +alchSect("base","База предметов",baseInner,baseExtraHdr)
-    +histCard;
+  const rxnBody=hasBaseReaction
+    ?'<div class="alch-recipe-grid">'+recipeCardsFn(S.alchRecipes,"S.alchRecipes")+'</div>'
+    :lockedMsg("Базовая алхимическая реакция");
+  const circleBody=hasCircle
+    ?'<div class="alch-recipe-grid">'+recipeCardsFn(S.alchCircleRecipes,"S.alchCircleRecipes")+'</div>'
+    :lockedMsg("Алхимический круг");
+
+  // ── 3. PROCESSING RECIPES ──────────────────────────────────────────────────────
+  const dbOpts=S.alchDB.map(it=>'<option value="'+it.id+'">'+alchLabel(it)+'</option>').join("");
+  const procForm='<div style="display:flex;gap:6px;flex-wrap:wrap;align-items:flex-end;margin-bottom:10px;padding:8px;background:var(--bg);border:1px solid var(--border);border-radius:6px">'
+    +'<div><div class="fl" style="font-size:.6rem">Исходник</div><select class="inp" id="procSrc" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
+    +'<div><div class="fl" style="font-size:.6rem">Результат</div><select class="inp" id="procRes" style="width:auto">'+(dbOpts||'<option>База пуста</option>')+'</select></div>'
+    +'<button class="btn" style="font-size:.55rem" onclick="saveProcRecipe()">Сохранить</button>'
+    +'</div>';
+  const procCardsHtml=S.procRecipes.map((r,i)=>{
+    const src=alchFind(r.srcId),res=alchFind(r.resId);
+    return '<div class="alch-recipe-card" style="cursor:default">'
+      +'<button class="alch-recipe-del" onclick="S.procRecipes.splice('+i+',1);render()">✕</button>'
+      +'<div><div class="alch-recipe-result">'+(src?src.name:'(удалён)')+'</div>'
+      +(src?'<div class="alch-item-tags" style="margin-top:3px"><span class="tg '+lvlTg(src.level)+'">Ур. '+src.level+'</span><span class="tg tg-dim">'+src.attribute+'</span></div>':'')
+      +'</div>'
+      +'<div class="alch-recipe-sep"></div>'
+      +'<div class="alch-recipe-ingredients"><div class="alch-recipe-ing" style="color:var(--gold)">→ '+(res?res.name:'(удалён)')+'</div></div>'
+      +'</div>';
+  }).join('')||'<div style="color:var(--text-dim);font-size:.78rem;padding:8px;text-align:center;font-style:italic">Нет рецептов</div>';
+  const procBody=hasProcessing
+    ?procForm+'<div class="alch-recipe-grid">'+procCardsHtml+'</div>'
+    :lockedMsg("Обработка алхимических ингредиентов");
+
+  // ── 4. BASE DB ────────────────────────────────────────────────────────────────
+  const groups=alchSortedFiltered();
+  let baseCardsHtml="";
+  for(const bg of groups){
+    if(alchBaseGroupBy&&bg.groupKey)baseCardsHtml+='<div class="grp-title" style="grid-column:1/-1">'+bg.groupKey+'</div>';
+    for(const bit of bg.items){
+      baseCardsHtml+='<div class="alch-base-card">'
+        +'<div class="alch-base-name">'+bit.name+'</div>'
+        +'<div class="alch-item-tags"><span class="tg '+lvlTg(bit.level)+'">Ур. '+bit.level+'</span><span class="tg tg-dim">'+bit.attribute+'</span></div>'
+        +'<div class="alch-base-actions">'
+        +'<button class="alch-add-inv-btn" onclick="alchQtyChange(\''+bit.id+'\',1)">+ в инв.</button>'
+        +'<button class="bdng" style="padding:2px 6px;font-size:.5rem" onclick="alchDelFromDB(\''+bit.id+'\')">✕</button>'
+        +'</div></div>';
+    }
+  }
+  if(!baseCardsHtml)baseCardsHtml='<div style="grid-column:1/-1;color:var(--text-dim);font-style:italic;padding:8px;text-align:center;font-size:.78rem">База пуста</div>';
+
+  const baseGrpPanel='<div class="alch-filter-panel'+(alchBaseGroupVisible?" open":"")+'">'
+    +'<div class="alch-filter-row"><span class="fs-xs text-dim">Группировка:</span>'
+    +'<button class="alch-ctrl-btn'+(alchBaseGroupBy===""?" active":"")+'" onclick="alchBaseGroupBy=\'\';render()">Нет</button>'
+    +'<button class="alch-ctrl-btn'+(alchBaseGroupBy==="level"?" active":"")+'" onclick="alchBaseGroupBy=\'level\';render()">По уровню</button>'
+    +'<button class="alch-ctrl-btn'+(alchBaseGroupBy==="attribute"?" active":"")+'" onclick="alchBaseGroupBy=\'attribute\';render()">По атрибуту</button>'
+    +'</div></div>';
+  const baseSortPanel='<div class="alch-filter-panel'+(alchBaseSortVisible?" open":"")+'">'
+    +'<div class="alch-filter-row"><span class="fs-xs text-dim">Сортировка:</span>'
+    +'<button class="alch-ctrl-btn'+(alchBaseSortCol==="name"&&alchBaseSortDir===1?" active":"")+'" onclick="alchBaseSortCol=\'name\';alchBaseSortDir=1;render()">По названию ↑</button>'
+    +'<button class="alch-ctrl-btn'+(alchBaseSortCol==="level"?" active":"")+'" onclick="alchBaseSortCol=\'level\';alchBaseSortDir=1;render()">По уровню ↑</button>'
+    +'<button class="alch-ctrl-btn'+(alchBaseSortCol==="attribute"?" active":"")+'" onclick="alchBaseSortCol=\'attribute\';alchBaseSortDir=1;render()">По атрибуту</button>'
+    +'</div></div>';
+  const baseBody=baseGrpPanel+baseSortPanel+'<div class="alch-base-grid" style="margin-top:6px">'+baseCardsHtml+'</div>';
+  const baseExtraHdr='<div class="alch-ctrl-bar">'
+    +'<button class="alch-icon-btn'+(alchBaseGroupVisible?" active":"")+'" onclick="alchBaseGroupVisible=!alchBaseGroupVisible;render()" title="Группировка">⊞</button>'
+    +'<button class="alch-icon-btn'+(alchBaseSortVisible?" active":"")+'" onclick="alchBaseSortVisible=!alchBaseSortVisible;render()" title="Сортировка">↕</button>'
+    +'<input class="inp" placeholder="Поиск..." style="width:80px;padding:4px 6px;font-size:.62rem" oninput="alchBaseSearch=this.value;render()" value="'+alchBaseSearch+'">'
+    +'<button class="btn" style="font-size:.5rem;flex-shrink:0" onclick="openAlchItemModal()">+ Добавить</button>'
+    +'</div>';
+
+  // ── 5. HISTORY ────────────────────────────────────────────────────────────────
+  const histColors={add:"#27ae60",update:"#7ec8e3",del:"#e67e22",success:"#27ae60",error:"#e05050",synth:"#9b59b6",recipe:"#c9a84c"};
+  const histHtml=S.alchHistory&&S.alchHistory.length
+    ?S.alchHistory.slice(0,80).map(e=>'<div class="log-entry">'
+      +'<span><span style="color:'+(histColors[e.type]||"var(--text-dim)")+'">'+e.txt+'</span>'
+      +(e.extra?' <span style="color:var(--text-dim)">'+e.extra+'</span>':"")
+      +'</span><span class="log-time">'+alchTimePretty(e.t)+'</span></div>').join("")
+    :'<div style="color:var(--text-dim);font-size:.78rem;padding:6px">Нет событий</div>';
+  const histBody='<div class="log-scroll" id="alch-log">'+histHtml+'</div>';
+  const histExtraHdr='<button class="btn" style="font-size:.55rem" onclick="S.alchHistory=[];render()">Очистить</button>';
+
+  return aCard("inv","Инвентарь алхимика",invBody,invExtraHdr)
+    +aCard("recipes","Базовая реакция",rxnBody,hasBaseReaction?addRecipeBtn:"")
+    +aCard("circle","Алхимический круг",circleBody,hasCircle?addRecipeBtn:"")
+    +aCard("proc","Рецепты обработки",procBody,"")
+    +aCard("base","База предметов",baseBody,baseExtraHdr)
+    +aCard("hist","История",histBody,histExtraHdr);
 }
 
 function alchAddToDB(){
@@ -1323,81 +1431,90 @@ function saveAlchRecipe(type){
 
 function rQNPC(){
   var active=S.quests.filter(function(q){return !q.done;}),done=S.quests.filter(function(q){return q.done;});
+
   function taskListHtml(q){
     var tasks=q.tasks||[];
-    if(!tasks.length) return '';
-    return tasks.map(function(t){
-      return '<div style="display:flex;align-items:flex-start;gap:8px;padding:5px 0 5px 12px;border-top:1px solid #1a1510">'
-        +'<div style="flex:1;min-width:0">'
-        +'<span style="font-size:.78rem;'+(t.done?'text-decoration:line-through;color:#5a4a35':'color:#e8dcc8')+'">'+(t.done?'✓ ':'')+t.name+'</span>'
-        +(t.description?'<div style="font-size:.68rem;color:#7a6a52;margin-top:1px">'+t.description+'</div>':"")
-        +'</div>'
-        +'<div class="row" style="flex-shrink:0">'
-        +(t.done
-          ?'<button class="btn" style="padding:2px 7px;font-size:.62rem" onclick="toggleTask('+q.id+','+t.id+')">↩</button>'
-          :'<button class="btn" style="padding:2px 7px;font-size:.62rem;color:#27ae60;border-color:#27ae60" onclick="toggleTask('+q.id+','+t.id+')">✓</button>'
-        )
-        +'<button class="btn" style="padding:2px 7px;font-size:.62rem" onclick="oEditTask('+q.id+','+t.id+')">✏</button>'
-        +'</div></div>';
-    }).join("");
+    if(!tasks.length)return '';
+    return '<div class="task-list">'
+      +tasks.map(function(t){
+        return '<div class="task-item">'
+          +'<div class="task-check'+(t.done?' checked':'')+'" onclick="toggleTask('+q.id+','+t.id+')">'+(t.done?'✓':'')+'</div>'
+          +'<div style="flex:1;min-width:0">'
+          +'<div style="font-size:.8rem;'+(t.done?'text-decoration:line-through;color:var(--text-dim)':'')+'">'+t.name+'</div>'
+          +(t.description?'<div class="task-hint">'+t.description+'</div>':"")
+          +'</div>'
+          +'<button class="btn" style="padding:2px 7px;font-size:.58rem;flex-shrink:0" onclick="oEditTask('+q.id+','+t.id+')">✏</button>'
+          +'</div>';
+      }).join('')
+      +'<button class="task-add-btn" onclick="oAddTask('+q.id+')">+ задача</button>'
+      +'</div>';
   }
+
   var activeHtml=active.map(function(q){
     var tasks=q.tasks||[];
     var doneCount=tasks.filter(function(t){return t.done;}).length;
     var tasksOpen=questTasksOpen[q.id]!==false;
     var toggle='questTasksOpen['+q.id+']='+(!tasksOpen)+';render()';
+    var hasTasks=tasks.length>0;
     return '<div class="quest-item">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
-      +'<div style="flex:1;min-width:0;cursor:pointer" onclick="'+toggle+'">'
-      +'<div style="display:flex;align-items:center;gap:6px">'
-      +'<span style="font-weight:bold;font-size:.88rem;color:#c9a84c">'+q.name+'</span>'
-      +(tasks.length?'<span style="font-size:.65rem;color:#5a4a35">'+doneCount+'/'+tasks.length+'</span>'
-        +'<span style="color:#c9a84c;font-size:.7rem">'+(tasksOpen?"▲":"▼")+'</span>':"")
+      +'<div class="flex-between">'
+      +'<div style="flex:1;min-width:0">'
+      +'<div class="row" style="align-items:flex-start;gap:6px">'
+      +'<div class="quest-name" style="cursor:pointer" onclick="'+toggle+'">'+q.name+'</div>'
+      +(hasTasks?'<span class="quest-task-badge'+(doneCount>0?' has-tasks':'')+'" onclick="'+toggle+'">'
+        +doneCount+'/'+tasks.length+'</span>':"")
       +'</div>'
-      +(q.description?'<div style="font-size:.72rem;color:#7a6a52;margin-top:3px">'+q.description+'</div>':"")
+      +(q.description?'<div class="quest-desc">'+q.description+'</div>':"")
       +'</div>'
-      +'<div class="row" style="flex-shrink:0">'
-      +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="event.stopPropagation();oEditQuest('+q.id+')">✏</button>'
-      +'<button class="btn" style="padding:3px 8px;font-size:.66rem;color:#27ae60;border-color:#27ae60" onclick="event.stopPropagation();S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:true}):x;});render()">✓</button>'
+      +'<div class="row" style="flex-shrink:0;gap:4px">'
+      +'<button class="btn" style="padding:3px 8px;font-size:.58rem" onclick="event.stopPropagation();oEditQuest('+q.id+')">✏</button>'
+      +'<button class="btn" style="padding:3px 8px;font-size:.58rem;color:var(--green);border-color:var(--green)" onclick="event.stopPropagation();S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:true}):x;});render()">✓</button>'
       +'</div></div>'
-      +(tasksOpen
-        ?(tasks.length?'<div style="margin-top:4px">'+taskListHtml(q)+'</div>':"")
-        +'<button class="btn" style="width:100%;margin-top:6px;font-size:.68rem" onclick="oAddTask('+q.id+')">+ Пункт</button>'
+      +(tasksOpen?taskListHtml(q)
+        +(!(q.tasks&&q.tasks.length)?'<button class="task-add-btn" style="margin-top:4px" onclick="oAddTask('+q.id+')">+ задача</button>':"")
         :"")
       +'</div>';
   }).join("");
+
   var doneHtml=done.map(function(q){
     return '<div class="quest-item quest-done">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:8px">'
-      +'<div style="flex:1"><div style="font-weight:bold;font-size:.82rem;text-decoration:line-through;color:#5a4a35">'+q.name+'</div></div>'
-      +'<div class="row">'
-      +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:false}):x;});render()">↩</button>'
+      +'<div class="flex-between">'
+      +'<div class="quest-name" style="text-decoration:line-through">'+q.name+'</div>'
+      +'<div class="row" style="gap:4px">'
+      +'<button class="btn" style="padding:3px 8px;font-size:.58rem" onclick="S.quests=S.quests.map(function(x){return x.id==='+q.id+'?Object.assign({},x,{done:false}):x;});render()">↩</button>'
       +'<button class="bdng" onclick="S.quests=S.quests.filter(function(x){return x.id!=='+q.id+';});render()">✕</button>'
       +'</div></div></div>';
   }).join("");
-  var npcHtml=S.npcs.map(function(n){
-    return '<div class="npc-item">'
-      +'<div style="display:flex;justify-content:space-between;align-items:flex-start">'
-      +'<div style="flex:1"><div style="font-weight:bold;font-size:.84rem;color:#c9a84c">'+n.name+'</div>'
-      +(n.notes?'<div style="font-size:.72rem;color:#7a6a52;margin-top:4px">'+n.notes+'</div>':"")
-      +'</div><div class="row">'
-      +'<button class="btn" style="padding:3px 8px;font-size:.66rem" onclick="oEditNPC('+n.id+')">Изм.</button>'
-      +'</div></div></div>';
-  }).join("");
+
+  var npcHtml='<div class="npc-grid">'
+    +S.npcs.map(function(n){
+      return '<div class="npc-card" onclick="oEditNPC('+n.id+')">'
+        +'<div class="npc-card-name">'+n.name+'</div>'
+        +(n.notes?'<div class="npc-card-notes">'+n.notes+'</div>':"")
+        +'</div>';
+    }).join("")
+    +'<div class="npc-card grid-add" onclick="oAddNPC()">+</div>'
+    +'</div>';
+
   return '<div class="card">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-    +'<div class="stitle" style="margin-bottom:0">Квесты и задачи<div class="sline"></div></div>'
+    +'<div class="stitle" style="margin-bottom:0"><div class="orn-diamond"></div> Квесты <div class="orn-diamond"></div><div class="sline"></div></div>'
     +'<button class="btn" onclick="oAddQuest()">+ Квест</button></div>'
-    +'<div style="font-size:.65rem;color:#7a6a52;letter-spacing:.1em;margin-bottom:8px;cursor:pointer" onclick="questsOpenActive=!questsOpenActive;render()">АКТИВНЫЕ ('+active.length+') '+(questsOpenActive?"▲":"▼")+'</div>'
-    +(questsOpenActive?activeHtml:'')
-    +'<div style="font-size:.65rem;color:#7a6a52;letter-spacing:.1em;margin-top:10px;margin-bottom:8px;cursor:pointer" onclick="questsOpenDone=!questsOpenDone;render()">ВЫПОЛНЕНЫ ('+done.length+') '+(questsOpenDone?"▲":"▼")+'</div>'
-    +(questsOpenDone?doneHtml:'')
+    +'<div class="quest-grp-lbl">АКТИВНЫЕ ('+active.length+')<span class="toggle-lnk" onclick="questsOpenActive=!questsOpenActive;render()">'+(questsOpenActive?"▲":"▼")+'</span></div>'
+    +(questsOpenActive
+      ?(active.length?activeHtml:'<div style="color:var(--text-dim);font-size:.8rem;margin-bottom:8px">Нет активных квестов</div>')
+      :'')
+    +'<div class="quest-grp-lbl" style="margin-top:10px">ВЫПОЛНЕНЫ ('+done.length+')<span class="toggle-lnk" onclick="questsOpenDone=!questsOpenDone;render()">'+(questsOpenDone?"▲":"▼")+'</span></div>'
+    +(questsOpenDone
+      ?(done.length?doneHtml:'<div style="color:var(--text-dim);font-size:.8rem;margin-bottom:8px">Нет выполненных</div>')
+      :'')
     +'</div>'
     +'<div class="card">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
-    +'<div class="stitle" style="margin-bottom:0">Персонажи (НПС)<div class="sline"></div></div>'
+    +'<div class="stitle" style="margin-bottom:0"><div class="orn-diamond"></div> НПС <div class="orn-diamond"></div><div class="sline"></div></div>'
     +'<button class="btn" onclick="oAddNPC()">+ НПС</button></div>'
-    +(S.npcs.length===0?'<div style="color:#7a6a52;font-size:.8rem">Нет записей</div>':npcHtml)
+    +(S.npcs.length===0&&!S.npcs.length?'<div style="color:var(--text-dim);font-size:.8rem;margin-bottom:8px">Нет НПС</div>':'')
+    +npcHtml
     +'</div>';
 }
 
@@ -1408,16 +1525,22 @@ function rPh(i,t){return '<div class="card"><div style="text-align:center;paddin
 function render(){
   scheduleSave();
   document.getElementById("charNameDisp").textContent = S.name || "Персонаж";
-  document.getElementById("lvlD").textContent = "УР. " + S.level;
+  var lvlEl = document.getElementById("lvlD");
+  if (lvlEl) lvlEl.textContent = "УР. " + S.level;
   var slotEl = document.getElementById("slotD");
   if (slotEl) {
     slotEl.textContent = (activeSlot + 1) + "/" + (slots.length || 1);
     slotEl.style.display = (slots.length > 1) ? "" : "none";
   }
 
+  var hdrSubEl=document.getElementById("hdrSub");
+  if(hdrSubEl){
+    var profNames=S.professions.map(function(p){return p.uniqueName||p.name;}).join(" · ");
+    hdrSubEl.textContent=profNames||"";
+  }
   var hasAlch=S.professions.some(function(p){return p.knowledgeArea==="Алхимия";});
   var hasMagic=S.professions.some(function(p){return p.knowledgeArea==="Магия";});
-  var tbs=[["char","Персонаж"],["professions","Профессии"],["skills","Навыки"],["inventory","Инвентарь"]];
+  var tbs=[["char","Персонаж"],["skills","Навыки"],["inventory","Инвентарь"]];
   if(hasAlch) tbs.push(["alchemy","Алхимия"]);
   if(hasMagic) tbs.push(["magic","Магия"]);
   tbs.push(["qnpc","Квесты / НПС"]);
