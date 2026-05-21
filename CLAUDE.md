@@ -24,11 +24,11 @@
 
 ```
 ├── index.html          # Telegram Mini App (точка входа TG)
-├── shared.js           # Весь игровой JS (>1700 строк) — подключается и TG, и VK
+├── shared.js           # Весь игровой JS (~2400 строк) — подключается и TG, и VK
 ├── vk/
 │   └── index.html      # VK Mini App (точка входа VK, подключает ../shared.js)
 ├── frontend/
-│   └── index.html      # Копия index.html для тестирования
+│   └── index.html      # Копия для локального тестирования (npx serve -p 5500 .)
 ├── view/
 │   └── index.html      # Read-only просмотр персонажа для мастера
 ├── master/
@@ -39,6 +39,7 @@
 │   └── .env.example    # Шаблон переменных окружения
 ├── database/
 │   └── schema.sql      # PostgreSQL схема для Supabase
+├── design.md           # Дизайн-система: палитра, CSS-классы, модалы, мобильный UX
 └── CLAUDE.md
 ```
 
@@ -61,7 +62,7 @@ var PLAT = {
 ```
 
 Порядок загрузки в HTML:
-1. Инлайн-скрипт: объявляет `PLAT`, `initApp`, `loadCharacter`, `saveCharacter`
+1. Инлайн-скрипт: объявляет `PLAT`, `initApp`, `loadCharacter`, `saveCharacter`, UI-функции
 2. `<script src="shared.js">` — подключает весь общий код
 3. `<script>initApp();</script>` — запускает приложение
 
@@ -92,19 +93,30 @@ let S = {
 
 ### Рендеринг
 
-Один `render()` перерисовывает текущую вкладку. Вкладки: `char`, `professions`, `skills`, `inventory`, `alchemy`, `qnpc`. Вкладки `alchemy` и `magic` появляются только если у персонажа есть соответствующая профессия по полю `knowledgeArea`.
+Один `render()` перерисовывает текущую вкладку. Вкладки: `char`, `skills`, `inventory`, `alchemy`, `qnpc`.  
+Вкладка `alchemy` появляется только если у персонажа есть профессия с `knowledgeArea === "Алхимия"`.  
+Вкладка «Профессии» убрана — профессии отображаются внутри вкладки «Персонаж».
 
 ### UI STATE
 
-Все переменные состояния UI (открыто/закрыто, текущая сортировка) — глобальные `let` в `shared.js`:
+Переменные состояния UI — глобальные `let` в `shared.js`:
 
 ```js
 let tab = 'char';
 let invOpen = { weapons:true, armors:true, ... };
-let alchInvSortBy = 'name', alchInvSortDir = 1;
+let alchSectOpen = { inv:true, proc:true, recipes:true, circle:true, base:true, hist:true };
+let alchInvSortVisible=false, alchBaseSortVisible=false;
+let alchInvGroupVisible=false, alchBaseGroupVisible=false;
+let charSecState = { prof:false, props:false, titles:false, ach:false, notes:false };
 let questTasksOpen = {};   // { [questId]: bool }
-// ...
 ```
+
+`charSecState` и `alchSectOpen` сохраняют collapse-состояние секций между вызовами `render()`, т.к. DOM перерисовывается полностью.
+
+### Двойная система модалов
+
+- **Динамические** (`openMod(html)/closeMod()`): старые модалы генерируются в JS
+- **Статические** (`openModal(id)/closeModal(id)`): новые модалы заранее в HTML, показываются классом `.open`
 
 ---
 
@@ -178,17 +190,11 @@ ALLOWED_ORIGIN=*
 3. **Frontend**: `git push` → GitHub Pages автоматически публикует
 4. **BACKEND_URL** в `index.html` и `vk/index.html` должен указывать на актуальный URL Render
 
+Локальное тестирование: `cd frontend && npx serve -p 5500 .`
+
 ---
 
-## Цветовая палитра
+## UI Дизайн
 
-| Назначение | Цвет |
-|-----------|------|
-| Золото / акцент | `#c9a84c` |
-| Тёмный фон | `#0a0908` |
-| Карточки | `#100e0a` |
-| Успех / зелёный | `#27ae60` |
-| Опасность / красный | `#e05050` |
-| Предупреждение | `#e67e22` |
-| Текст второстепенный | `#7a6a52` |
-| Текст основной | `#e8dcc8` |
+CSS-компоненты, палитра, типографика, модалы, мобильный UX:  
+👉 [design.md](design.md)
