@@ -276,8 +276,11 @@ textarea.inp { resize:vertical; min-height:56px; }
 .alch-sect-hdr { display:flex; justify-content:space-between; align-items:center; cursor:pointer; padding-bottom:8px; }
 
 /* BACKPACK INLINE */
-.bp-settings { margin-top:10px; padding-top:10px; border-top:1px solid var(--border); display:none; }
+.bp-settings { padding-top:10px; border-top:1px solid var(--border); display:none; margin-top:10px; }
 .bp-settings.open { display:block; }
+.bp-toggle-btn { width:38px; height:38px; padding:0; border-radius:6px; border:1px solid var(--gold); background:var(--bg-deep); cursor:pointer; font-size:1.1rem; display:flex; align-items:center; justify-content:center; touch-action:manipulation; transition:opacity .15s,filter .15s; flex-shrink:0; }
+.bp-toggle-btn.off { opacity:.35; filter:grayscale(1); border-color:var(--border); }
+.bp-toggle-btn:active { transform:scale(.9); }
 
 /* GOLD / LOG */
 .gold-num { font-family:var(--font-hd); font-size:2rem; font-weight:700; color:var(--gold); letter-spacing:.04em; }
@@ -367,7 +370,7 @@ select.inp option { background:var(--bg-card); }
 <!-- HEADER -->
 <div class="hdr">
   <div class="hdr-top">
-    <div class="char-photo" onclick="openCharSelect()" title="Персонажи">
+    <div class="char-photo" id="char-photo" onclick="openCharSelect()" title="Персонажи">
       <div class="char-photo-placeholder">
         <span style="font-size:1.2rem;opacity:.3">⚔</span>
         <span>слот</span>
@@ -375,8 +378,8 @@ select.inp option { background:var(--bg-card); }
     </div>
     <div class="hdr-info">
       <div class="cname" id="charNameDisp" onclick="openCharSelect()" title="Сменить персонажа">Персонаж</div>
-      <div class="hdr-sub" id="hdrSub"></div>
-      <div class="hdr-sub" id="slotD" style="margin-top:1px;opacity:.6"></div>
+      <div class="hdr-sub" id="hdrSub" style="display:none"></div>
+      <div class="hdr-sub" id="slotD" style="margin-top:1px;opacity:.6;display:none"></div>
     </div>
     <div class="hdr-actions">
       <button class="hdr-btn-sq" onclick="openLinkModal()" style="background:var(--vk-btn-bg);border-color:var(--vk-btn-bd);color:var(--blue)" title="VK">🔗</button>
