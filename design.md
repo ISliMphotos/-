@@ -31,9 +31,11 @@
 
 ## Шапка
 
-- Фото персонажа `48×48px`, выровнено по верху имени (`align-items:flex-start`)
+- Фото персонажа `48×48px` (`#char-photo`), выровнено по верху имени. Клик → `openCharSelect()`. Показывает аватарку (`S.avatar` base64) если есть, иначе заглушку.
 - 3 квадратные кнопки `.hdr-btn-sq` `36×36px`: 🔗 VK/TG, 💾 Сохранить, ☀/🌙 Тема
-- Имя — `Cinzel Decorative`, подзаголовок с расой/профессиями, слот
+- Имя — `Cinzel Decorative`. Подзаголовки `#hdrSub` и `#slotD` скрыты (`display:none`).
+- Имя редактируется в меню выбора слота (кнопка ✏ на каждой slot-card → `openSlotEdit(idx)`), не в табе «Персонаж».
+- Аватарка задаётся там же: `<input type="file">` → Canvas resize 128×128 → base64 → `slots[idx].avatar`.
 
 ---
 
@@ -66,20 +68,25 @@
 
 ## Вкладка: Навыки
 
-- Группировка по профессии (`.grp-title`)
+- Группировка по `source` атрибута / профессии (`.grp-title`, кликабельный заголовок)
+- Первая группа «★ Избранные» — виртуальная, показывает навыки с `favorite:true` из всех групп
+- State collapse каждой группы в `skillGrpOpen[groupName]`, по умолчанию `true` (открыта)
 - Сетка `.skills-grid` (2-col)
 - Карточка: название, тег типа, тег уровня, `.skill-prop` (зелёный, всегда виден)
-- Клик → `.expanded` → `.skill-hidden` (описание + кнопка Ред.)
-- `.grid-add` — добавить навык
+- Клик → `.expanded` → `.skill-hidden` (описание + кнопки ★ Избранное, Редактировать)
+- Кнопка ★/☆ в expanded-состоянии toggles `s.favorite`; навык добавляется/убирается из Избранных без удаления из своей группы
+- `.grid-add` в каждой группе — добавить навык
 
 ---
 
 ## Вкладка: Инвентарь
 
-- **Слоты рюкзаков** — клик → inline `.bp-settings` (кнопка экипировки + ± вместимости)
+- **Слоты рюкзаков**: кнопка `.bp-toggle-btn` `38×38px` с иконкой 🎒 (`.off` — снят: `opacity:.35; grayscale`) рядом со счётчиком `используется / макс`. Клик на счётчик → inline `.bp-settings` (± вместимость).
 - **Золото** — клик → `gold-modal` (калькулятор)
 - **6 секций**: ⚔ Оружие, 🛡 Доспехи, 💍 Аксессуары, ⚗ Алх. ингредиенты, 🧪 Зелья, 🎒 Прочее
 - Сетка `.items-grid` (2-col), карточки с `.item-prop` (зелёный, всегда виден), `.item-eq-btn`
+- Кнопки добавления — ячейки `.grid-add` внутри сетки (не отдельные кнопки под секцией)
+- **Расходуемые предметы**: поле `consumable:bool` на всех типах. Если `true` — карточка показывает qty-контрол `−/qty/+` (`item-qty-btn`, `item-qty-val`). Если `false` — qty не отображается (количество = 1 подразумевается).
 
 ---
 
@@ -138,7 +145,9 @@ State видимости: `alchInvSortVisible`, `alchInvGroupVisible`, `alchBase
 | `.alch-filter-panel` / `.alch-filter-panel.open` | Фильтр-панель |
 | `.alch-recipe-del` | Всегда видимая кнопка удаления рецепта |
 | `.alch-reacted` | Визуальный фидбек клика (400ms) |
-| `.bp-settings` | Inline-панель рюкзака |
+| `.bp-settings` | Inline-панель рюкзака (± вместимость) |
+| `.bp-toggle-btn` | Кнопка рюкзака 38×38px; `.off` = снят (grayscale + opacity:.35) |
+| `.item-qty-btn` / `.item-qty-val` | Qty-контрол расходуемых предметов |
 | `.quest-item` / `.quest-done` / `.quest-task-badge` / `.quest-grp-lbl` | Компоненты квестов |
 | `.task-add-btn` | Dashed кнопка добавления |
 | `.modal-ov` / `.modal-ov.open` | Оверлей модала |
@@ -166,22 +175,30 @@ State видимости: `alchInvSortVisible`, `alchInvGroupVisible`, `alchBase
 ## JS-функции UI
 
 ```js
-switchTab(id, btn)           // переключение вкладок
-toggleTheme()                // ☀/🌙
-openModal(id)                // показать модал
-closeModal(id)               // скрыть модал
-openItemModal(name)          // item-modal
-toggleSection(id)            // collapse/expand → charSecState
-toggleBackpack()             // bp-settings
-toggleAlchFilter(id)         // alch-filter-panel
-alchReact(card, name)        // визуальный фидбек + лог
-confirmAlchDelete(btn, what) // модал подтверждения
-execAlchDelete()             // выполнить удаление
-addAlchIngRow()              // добавить строку ингредиента (макс 7)
-removeAlchIngRow(btn)        // удалить строку ингредиента
+switchTab(id, btn)               // переключение вкладок
+toggleTheme()                    // ☀/🌙
+openModal(id)                    // показать модал
+closeModal(id)                   // скрыть модал
+openItemModal(name)              // item-modal
+toggleSection(id)                // collapse/expand → charSecState
+toggleBackpack()                 // bp-settings (± вместимость)
+toggleAlchFilter(id)             // alch-filter-panel
+alchReact(card, name)            // визуальный фидбек + лог
+confirmAlchDelete(btn, what)     // модал подтверждения
+execAlchDelete()                 // выполнить удаление
+addAlchIngRow()                  // добавить строку ингредиента (макс 7)
+removeAlchIngRow(btn)            // удалить строку ингредиента
 openHpModal() / openHpCalc()
 openGoldModal() / openGoldCalc()
 openExpModal()
+openCharSelect()                 // меню выбора персонажа (слоты)
+openSlotEdit(idx)                // редактор слота: имя + аватарка
+handleSlotAvatarPick(input, idx) // file input → Canvas 128×128 → base64
+saveSlotEdit(idx)                // сохранить имя/аватар слота
+clearSlotAvatar(idx)             // удалить аватарку слота
+confirmDeleteProp(id)            // подтверждение удаления особого свойства
+confirmDeleteTitle(id)           // подтверждение удаления звания
+confirmDeleteAch(id)             // подтверждение удаления достижения
 ```
 
 ---

@@ -75,6 +75,7 @@ let S = {
   name, level, exp, expNext,
   attributes: { strength, agility, vitality, intellect, trade, talent },
   currentHP, gold,
+  avatar,                        // base64 JPEG 128×128, хранится в JSONB
   professions[], skills[], weapons[], armors[], accessories[],
   alchDB[], alchInventory[], procRecipes[], alchRecipes[], alchCircleRecipes[],
   quests[], npcs[], achievements[],
@@ -82,6 +83,10 @@ let S = {
   notes, alchSuccessChance, ...
 }
 ```
+
+Поля `skills[n]`: `{ id, name, source, type, level, description, property, comment, bonusTarget, bonusValue, favorite }` — `favorite:bool` добавлено, управляется кнопкой ★ в раскрытой карточке.
+
+Поля `weapons/armors/accessories/potions/misc[n]`: добавлено `consumable:bool` — если `true`, показывается qty-контрол `−/qty/+` в карточке инвентаря.
 
 ### Мультислоты
 
@@ -99,19 +104,22 @@ let S = {
 
 ### UI STATE
 
-Переменные состояния UI — глобальные `let` в `shared.js`:
+Переменные состояния UI — глобальные в `shared.js`. **Важно:** переменные, используемые в inline-onclick, должны быть `var` (не `let`) — иначе браузер не видит их из HTML-контекста.
 
 ```js
-let tab = 'char';
+var tab = 'char';
+var skillGrpOpen = {};           // { [groupName]: bool } — collapse групп навыков
+var questsOpenActive = true;     // var! используется в inline-onclick квестов
+var questsOpenDone = false;      // var!
 let invOpen = { weapons:true, armors:true, ... };
 let alchSectOpen = { inv:true, proc:true, recipes:true, circle:true, base:true, hist:true };
 let alchInvSortVisible=false, alchBaseSortVisible=false;
 let alchInvGroupVisible=false, alchBaseGroupVisible=false;
 let charSecState = { prof:false, props:false, titles:false, ach:false, notes:false };
-let questTasksOpen = {};   // { [questId]: bool }
+let questTasksOpen = {};         // { [questId]: bool }
 ```
 
-`charSecState` и `alchSectOpen` сохраняют collapse-состояние секций между вызовами `render()`, т.к. DOM перерисовывается полностью.
+`charSecState`, `alchSectOpen`, `skillGrpOpen` сохраняют collapse-состояние между вызовами `render()`, т.к. DOM перерисовывается полностью.
 
 ### Двойная система модалов
 
@@ -169,6 +177,9 @@ CREATE TABLE characters (
 - **PLAT-абстракция** — вся платформенная специфика вынесена в 5 строк в HTML-обёртке; `shared.js` не знает о Telegram или VK напрямую.
 - **In-memory комнаты** — мастерские комнаты не нужно персистировать между сессиями, достаточно оперативной памяти с TTL.
 - **Render cold start** — фронтенд пингует `/health` при старте, чтобы разбудить бэкенд заранее.
+- **Аватарка персонажа** — base64 JPEG 128×128, ресайз через Canvas API на клиенте, хранится в `S.avatar` внутри JSONB. Редактируется через ✏ в меню выбора слота (`openSlotEdit(idx)`).
+- **Подтверждения удаления** — `confirmDeleteProp/Title/Ach(id)` открывают модал перед splice; паттерн аналогичен `confirmDeleteSk`.
+- **var vs let в UI state** — переменные, используемые в inline-onclick (inline HTML-атрибут), должны быть `var`, иначе браузер не найдёт их в глобальном scope.
 
 ---
 
