@@ -108,6 +108,19 @@ function deleteChar(idx) {
   ntf('Персонаж удалён', '#e05050');
 }
 
+function reorderSlots(from, to) {
+  if (from < 0 || to < 0 || from === to || from >= slots.length || to >= slots.length) return;
+  saveCurrentSlot();
+  var item = slots.splice(from, 1)[0];
+  slots.splice(to, 0, item);
+  // keep activeSlot pointing to same character
+  if (activeSlot === from) activeSlot = to;
+  else if (from < to && activeSlot > from && activeSlot <= to) activeSlot--;
+  else if (from > to && activeSlot >= to && activeSlot < from) activeSlot++;
+  openCharSelect();
+  scheduleSave();
+}
+
 // ── COPY / CHAR SELECT ─────────────────────────────────────────────────────────
 
 function copyViewLink(idx) {
@@ -130,7 +143,16 @@ function openCharSelect() {
     var nm = sl.name || 'Без имени';
     var lvl = sl.level || 1;
     var isActive = (i === activeSlot);
-    html += '<div class="slot-card' + (isActive ? ' active' : '') + '" onclick="switchSlot(' + i + ')">'
+    html += '<div class="slot-card' + (isActive ? ' active' : '') + '"'
+      + ' draggable="true"'
+      + ' ondragstart="slotDragSrc=' + i + '"'
+      + ' ondragover="event.preventDefault();slotDragOver=' + i + '"'
+      + ' ondrop="event.preventDefault();reorderSlots(slotDragSrc,slotDragOver);slotDragSrc=-1;slotDragOver=-1"'
+      + ' ontouchstart="slotDragSrc=' + i + '"'
+      + ' ontouchmove="event.preventDefault();var t=event.touches[0];var el=document.elementFromPoint(t.clientX,t.clientY);var sc=el&&el.closest(\'[data-slot-idx]\');if(sc)slotDragOver=+sc.getAttribute(\'data-slot-idx\')"'
+      + ' ontouchend="reorderSlots(slotDragSrc,slotDragOver);slotDragSrc=-1;slotDragOver=-1"'
+      + ' data-slot-idx="' + i + '"'
+      + ' onclick="switchSlot(' + i + ')">'
       + '<div class="slot-num">' + (i + 1) + '</div>'
       + '<div class="slot-info">'
       + '<div class="slot-name">' + nm + (isActive ? ' ✦' : '') + '</div>'
@@ -562,6 +584,7 @@ let charSecState={prof:false,props:false,titles:false,ach:false,notes:false};
 var dragSrc=null; // {arr:'weapons', id:123}
 var dragOver=null;
 var _touchDragItem=null,_touchDragArr=null,_touchDragId=null;
+var slotDragSrc=-1,slotDragOver=-1;
 
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
