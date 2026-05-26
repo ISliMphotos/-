@@ -634,8 +634,8 @@ function toggleSection(id) {
 }
 
 function toggleBackpack() {
-  var el = document.getElementById('bp-settings');
-  if (el) el.classList.toggle('open');
+  bpSettingsOpen = !bpSettingsOpen;
+  render();
 }
 
 function calcInput(dispId, digit) {

@@ -19,6 +19,7 @@ let S={
   weapons:[],
   armors:[],
   accessories:[],
+  clothing:[],
   alchItems:[],
   potions:[],
   misc:[],
@@ -50,7 +51,7 @@ function defaultChar() {
     attributes:{strength:0,agility:0,vitality:0,intellect:0,trade:0,talent:0},
     currentHP:0,gold:0,backpackOn:false,backpackSlots:10,professionLimit:6,
     titles:[],specialProps:[],professions:[],skills:[],weapons:[],armors:[],
-    accessories:[],alchItems:[],potions:[],misc:[],achievements:[],quests:[],
+    accessories:[],clothing:[],alchItems:[],potions:[],misc:[],achievements:[],quests:[],
     npcs:[],globalItemDB:[],alchDB:[],alchInventory:[],procRecipes:[],
     alchRecipes:[],alchCircleRecipes:[],alchHistory:[],alchSuccessChance:100,
     notes:"",hpLog:[],goldLog:[]
@@ -204,9 +205,11 @@ function saveSlotEdit(idx){
   var nm=document.getElementById('se_name');
   if(!slots[idx])slots[idx]=defaultChar();
   if(nm)slots[idx].name=nm.value.trim();
-  if(slots[idx]._pendingAvatar){slots[idx].avatar=slots[idx]._pendingAvatar;delete slots[idx]._pendingAvatar;}
+  var hadPendingAvatar=!!slots[idx]._pendingAvatar;
+  if(hadPendingAvatar){slots[idx].avatar=slots[idx]._pendingAvatar;delete slots[idx]._pendingAvatar;}
   if(idx===activeSlot){S.name=slots[idx].name;S.avatar=slots[idx].avatar||'';}
   closeMod();ntf('Сохранено','#27ae60');render();
+  if(hadPendingAvatar&&PLAT.hasUser())saveCharacter(true);
 }
 function clearSlotAvatar(idx){
   if(slots[idx])slots[idx].avatar='';
@@ -536,9 +539,12 @@ function scheduleSave() {
 // ── UI STATE ──────────────────────────────────────────────────────────────────
 
 let tab="char";
-let invOpen={weapons:true,armors:true,accessories:true,alch:true,potions:true,misc:true};
+let invOpen={weapons:true,armors:true,accessories:true,clothing:true,alch:true,potions:true,misc:true};
+var bpSettingsOpen=false;
 let questsOpenDone=false,questsOpenActive=true;
 var skillGrpOpen={};
+var npcGroupBy="";
+var npcSortBy="name";
 let questTasksOpen={};
 let alchSectOpen={inv:true,proc:true,recipes:true,circle:true,base:true,hist:true};
 let alchReagentCount=2,alchCircleReagentCount=2;
@@ -546,6 +552,7 @@ let alchBaseSortCol="name",alchBaseSortDir=1,alchBaseSearch="";
 let alchBaseGroupBy="",alchInvGroupBy="",alchInvSortBy="name",alchInvSortDir=1;
 let alchInvGroupVisible=false,alchBaseGroupVisible=false;
 let alchInvSortVisible=false,alchBaseSortVisible=false;
+var procFormOpen=false;
 let hcv="",gcv="";
 let notesOpen=false;
 let charSecState={prof:false,props:false,titles:false,ach:false,notes:false};
@@ -556,7 +563,7 @@ const skBonus=n=>S.skills.filter(s=>s.bonusTarget===n).reduce((a,s)=>a+(+s.bonus
 const acBonus=n=>S.accessories.filter(a=>a.equipped&&a.bonusTarget===n).reduce((a,s)=>a+(+s.bonusValue||0),0);
 const mhp=()=>S.attributes.vitality*5+S.attributes.strength*2+skBonus("Максимум HP")+acBonus("Максимум HP");
 const arm=()=>(S.armors.find(a=>a.equipped)?.armorValue||0)+skBonus("Броня")+acBonus("Броня");
-const invUsed=()=>S.weapons.length+S.armors.length+S.accessories.length+S.alchItems.length+S.potions.length+S.misc.length;
+const invUsed=()=>S.weapons.length+S.armors.length+S.accessories.length+(S.clothing||[]).length+S.alchItems.length+S.potions.length+S.misc.length;
 const imax=()=>15+(S.backpackOn?S.backpackSlots:0);
 
 // ── UTILS ─────────────────────────────────────────────────────────────────────
@@ -727,10 +734,11 @@ function rChar(){
   // Attribute cells (2×3 compact grid)
   const attrGrid=Object.entries(AT).map(([k,l])=>{
     const base=S.attributes[k],fs=skBonus(l),fc=acBonus(l),total=base+fs+fc;
-    const bonusTip=fs>0||fc>0?` title="база: ${base}${fs>0?', +'+fs+' навыки':''}${fc>0?', +'+fc+' аксессуары':''}"`:' title="Изменить атрибуты"';
-    return `<div class="ac"${bonusTip} onclick="oAttr()">
+    const bonusLine=(fs>0||fc>0)?`<div style="font-size:.55rem;color:var(--text-dim);line-height:1.2;margin-top:1px">${fs>0?`+${fs}нав.`:``}${fs>0&&fc>0?' ':''}${fc>0?`+${fc}акс.`:``}</div>`:``;
+    return `<div class="ac" title="Изменить атрибуты" onclick="oAttr()">
       <div class="av-total">${total}</div>
       <div class="al">${l}</div>
+      ${bonusLine}
     </div>`;
   }).join("");
 
@@ -739,7 +747,7 @@ function rChar(){
   const armorSub=eqArmor?eqArmor.name+(eqArmor.armorValue?' (+'+eqArmor.armorValue+')':''):(a>0?'навыки / аксессуары':'нет доспеха');
 
   // Professions section
-  const KCOLORS={Лечение:"tg-green",Алхимия:"tg-gold",Магия:"tg-blue",Бой:"tg-red"};
+  const KCOLORS={Лечение:"tg-green",Алхимия:"tg-gold",Магия:"tg-blue",Бой:"tg-red",Ремесло:"tg-dim"};
   const profCards=S.professions.map(p=>{
     const pp2=Math.min(100,p.expNext>0?p.exp/p.expNext*100:0);
     const cnt=S.skills.filter(s=>s.source===p.name).length;
@@ -811,12 +819,11 @@ function rChar(){
           <div class="stat-box-label">Здоровье</div>
           <div class="stat-box-val">${hp}<span style="font-size:.9rem;opacity:.5"> / ${h}</span></div>
           <div class="bwrap mt6"><div class="bfill hp-fill" style="width:${pp}%"></div></div>
-          <div class="stat-box-sub">⚔ изменить HP</div>
         </div>
         <div class="stat-box" style="min-width:0;overflow:hidden">
           <div class="stat-box-label">Броня</div>
           <div class="stat-box-val" style="font-size:1.2rem">${a}</div>
-          <div class="stat-box-sub">${armorSub}</div>
+          ${armorBreakdown()}
         </div>
       </div>
     </div>
@@ -887,7 +894,7 @@ function addSpecial(){S.specialProps.push({id:Date.now(),text:""});render();setT
 // ── PROFESSIONS TAB ───────────────────────────────────────────────────────────
 
 function rProf(){
-  const KCOLORS={Лечение:"#27ae60",Алхимия:"#9b59b6",Магия:"#7ec8e3",Бой:"#e05050"};
+  const KCOLORS={Лечение:"#27ae60",Алхимия:"#9b59b6",Магия:"#7ec8e3",Бой:"#e05050",Ремесло:"#8a7a6a"};
   return `<div class="card">
     <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">
       <div class="stitle" style="margin-bottom:0">Профессии<div class="sline"></div></div>
@@ -920,9 +927,7 @@ function rProf(){
         </div>
         <div style="display:flex;align-items:center;gap:6px;margin-top:8px">
           <span style="font-size:.65rem;color:#7a6a52;flex-shrink:0">Опыт:</span>
-          <input class="inp" type="number" value="${p.exp}" min="0" style="width:62px;padding:4px 6px" onchange="S.professions=S.professions.map(x=>x.id===${p.id}?{...x,exp:Math.max(0,+this.value)}:x);render()">
-          <span style="font-size:.65rem;color:#7a6a52">/</span>
-          <input class="inp" type="number" value="${p.expNext}" min="1" style="width:62px;padding:4px 6px" onchange="S.professions=S.professions.map(x=>x.id===${p.id}?{...x,expNext:Math.max(1,+this.value)}:x);render()">
+          <span class="fs-xs text-gold" style="cursor:pointer;text-decoration:underline dotted" onclick="openProfExpModal(${p.id})">${p.exp} / ${p.expNext}</span>
         </div>
         <div class="bwrap" style="margin-top:6px"><div class="bfill" style="width:${pp}%;background:linear-gradient(90deg,#7a5c1e,#c9a84c)"></div></div>
         ${cnt>0?`<div style="margin-top:6px;font-size:.65rem;color:#7a6a52">${cnt} навык(ов) — см. раздел Навыки</div>`:""}
@@ -939,12 +944,13 @@ function _skillCard(s,showFavBtn){
     <div class="skill-card-name">${s.favorite?'★ ':''}${s.name}</div>
     <div class="row" style="gap:4px;flex-wrap:wrap;margin-top:2px">
       <span class="tg ${typeClr[s.type]||'tg-dim'}" style="font-size:.48rem">${s.type==="passive"?"Пассивный":"Активный"}</span>
-      ${s.level?`<span class="tg tg-gold" style="font-size:.48rem">УР. ${s.level}</span>`:""}
+      ${s.level?`<span class="tg tg-gold" style="font-size:.48rem">${s.level}</span>`:""}
     </div>
     ${s.property?`<div class="skill-prop">${s.property}</div>`:""}
     <div class="skill-hidden">
-      ${s.description?`<div style="font-size:.78rem;color:var(--text-dim);font-style:italic;margin-bottom:6px">${s.description}</div>`:""}
+      ${s.description?`<div style="font-size:.78rem;color:var(--text-dim);font-style:italic;margin-bottom:6px;white-space:pre-wrap">${s.description}</div>`:""}
       ${s.comment?`<div style="font-size:.68rem;color:var(--text-dim);font-style:italic;margin-bottom:6px">${s.comment}</div>`:""}
+      ${s.bonusTarget?`<div style="font-size:.7rem;color:var(--green);margin-bottom:4px">Бонус: +${s.bonusValue||0} к ${s.bonusTarget}</div>`:""}
       <div class="row" style="gap:6px;margin-top:4px">
         ${showFavBtn?`<button class="btn" style="font-size:.62rem;padding:6px 10px;touch-action:manipulation;flex-shrink:0" onclick="event.stopPropagation();S.skills=S.skills.map(x=>x.id===${s.id}?{...x,favorite:!x.favorite}:x);render()" title="${s.favorite?'Убрать из избранного':'Добавить в избранное'}">${s.favorite?'★':'☆'}</button>`:''}
         <button class="btn" style="font-size:.62rem;padding:6px 14px;touch-action:manipulation;flex:1" onclick="event.stopPropagation();oEditSk(${s.id})">Редактировать</button>
@@ -970,7 +976,7 @@ function rSkills(){
     const open=skillGrpOpen[grpKey];
     html+=`<div class="grp-title" style="cursor:pointer" onclick="skillGrpOpen['${grpKey}']=!skillGrpOpen['${grpKey}'];render()">★ Избранные · ${favs.length} навык${favs.length===1?'':'ов'}<span style="float:right;font-size:.6rem">${open?'▲':'▼'}</span></div>`;
     if(open){
-      html+=`<div class="skills-grid" style="margin-bottom:12px">${favs.map(s=>_skillCard(s,false)).join("")}</div>`;
+      html+=`<div class="skills-grid" style="margin-bottom:12px">${favs.map(s=>s.type==='separator'?'<div style="grid-column:1/-1;height:1px;background:var(--border);margin:4px 0"></div>':_skillCard(s,true)).join("")}</div>`;
     }
   }
 
@@ -979,10 +985,12 @@ function rSkills(){
     if(skillGrpOpen[src]===undefined)skillGrpOpen[src]=true;
     const open=skillGrpOpen[src];
     const group=S.skills.filter(s=>s.source===src);
-    return `<div class="grp-title" style="cursor:pointer" onclick="skillGrpOpen['${src}']=!skillGrpOpen['${src}'];render()">${src} · ${group.length} навык${group.length===1?'':'ов'}<span style="float:right;font-size:.6rem">${open?'▲':'▼'}</span></div>
+    const realCount=group.filter(s=>s.type!=='separator').length;
+    return `<div class="grp-title" style="cursor:pointer" onclick="skillGrpOpen['${src}']=!skillGrpOpen['${src}'];render()">${src} · ${realCount} навык${realCount===1?'':'ов'}<span style="float:right;font-size:.6rem">${open?'▲':'▼'}</span></div>
     ${open?`<div class="skills-grid" style="margin-bottom:12px">
-      ${group.map(s=>_skillCard(s,true)).join("")}
-      <div class="skill-card grid-add" style="min-height:80px" onclick="oAddSk()">+</div>
+      ${group.map(s=>s.type==='separator'?'<div style="grid-column:1/-1;height:1px;background:var(--border);margin:4px 0"></div>':_skillCard(s,true)).join("")}
+      <div class="skill-card grid-add" style="min-height:80px" onclick="oAddSk('${src}')">+</div>
+      <div class="skill-card grid-add" style="min-height:40px;font-size:.7rem;opacity:.5" onclick="S.skills.push({id:Date.now(),type:'separator',source:'${src}'});render()">—</div>
     </div>`:''}`;
   }).join("");
 
@@ -1030,7 +1038,7 @@ function rInv(){
       </div>
     </div>
     <div class="bwrap mt6"><div class="bfill" style="width:${p}%;background:${u>=mx?"var(--red)":"linear-gradient(90deg,var(--gold-dark),var(--gold))"}"></div></div>
-    <div class="bp-settings" id="bp-settings" onclick="event.stopPropagation()">
+    <div class="bp-settings${bpSettingsOpen?' open':''}" id="bp-settings" onclick="event.stopPropagation()">
       <label class="fl" style="margin-top:8px;text-align:center;display:block">Вместимость рюкзака</label>
       <div class="row" style="justify-content:center;gap:8px;margin-top:6px">
         <button class="btn" onclick="S.backpackSlots=Math.max(1,S.backpackSlots-1);render()">−</button>
@@ -1046,86 +1054,161 @@ function rInv(){
   </div>
 </div>
 ${invCardSec("weapons","⚔ Оружие",S.weapons,
-    w=>`<div class="item-card${w.equipped?' equipped':''}" onclick="oEditInvItem('weapons',${w.id})">
-      <div class="item-card-name">${w.name||'—'}</div>
-      ${w.consumable?`<div class="item-qty" onclick="event.stopPropagation()">
-        <button class="item-qty-btn" onclick="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
-        <span class="item-qty-val">${w.qty||1}</span>
-        <button class="item-qty-btn" onclick="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,qty:(x.qty||1)+1}:x);render()">+</button>
-      </div>`:''}
-      ${w.damage?`<div class="item-prop">⚔ ${w.damage}${w.bonusDamage?' · '+w.bonusDamage:''}</div>`:''}
-      ${w.property?`<div class="item-prop">${w.property}</div>`:''}
-      <button class="item-eq-btn${w.equipped?' on':''}" onclick="event.stopPropagation();S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,equipped:!x.equipped}:x);render()">${w.equipped?'Снять':'Надеть'}</button>
+    w=>w&&w.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card${w.equipped?' equipped':''}">
+      <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
+        <div class="item-card-name">${w.name||'—'}</div>
+        ${(w.categories&&w.categories.length)?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">${w.categories.map(c=>`<span style="font-size:.55rem;border:1px solid var(--gold-dark);color:var(--gold-dim);border-radius:3px;padding:1px 5px">${c}</span>`).join('')}</div>`:''}
+        ${w.damage?`<div class="item-prop" style="font-size:.65rem">⚔ ${w.damage}${w.bonusDamage?' · '+w.bonusDamage:''}</div>`:''}
+      </div>
+      <div class="item-extra" style="display:none">
+        ${w.property?`<div class="item-prop" style="white-space:pre-wrap">${w.property}</div>`:''}
+        ${w.comment?`<div class="item-prop" style="font-style:italic;opacity:.7;white-space:pre-wrap">${w.comment}</div>`:''}
+        ${w.consumable?`<div class="item-qty" onclick="event.stopPropagation()">
+          <button class="item-qty-btn" onclick="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
+          <span class="item-qty-val">${w.qty!=null?w.qty:1}</span>
+          <button class="item-qty-btn" onclick="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,qty:(x.qty||0)+1}:x);render()">+</button>
+        </div>`:''}
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="font-size:.62rem;padding:6px 10px" onclick="S.weapons=S.weapons.map(x=>x.id===${w.id}?{...x,equipped:!x.equipped}:x);render()">${w.equipped?'Снять':'Надеть'}</button>
+          <button class="btn" style="font-size:.62rem;padding:6px 14px;flex:1" onclick="oEditInvItem('weapons',${w.id})">✏ Редактировать</button>
+        </div>
+      </div>
     </div>`,
     "oAddWpSmart()"
   )}
 ${invCardSec("armors","🛡 Доспехи",S.armors,
-    a=>`<div class="item-card${a.equipped?' equipped':''}" onclick="oEditInvItem('armors',${a.id})">
-      <div class="item-card-name">${a.name||'—'}</div>
-      <div class="item-qty" onclick="event.stopPropagation()" style="justify-content:center">
-        <span class="item-qty-val" style="color:var(--blue)">+${a.armorValue||0} брон.</span>
+    a=>a&&a.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card${a.equipped?' equipped':''}">
+      <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
+        <div class="item-card-name">${a.name||'—'}</div>
+        ${a.armorValue?`<div class="item-prop" style="font-size:.65rem;color:var(--blue)">+${a.armorValue} броня</div>`:''}
       </div>
-      ${a.property?`<div class="item-prop">${a.property}</div>`:''}
-      <button class="item-eq-btn${a.equipped?' on':''}" onclick="event.stopPropagation();S.armors=S.armors.map(x=>x.id===${a.id}?{...x,equipped:!x.equipped}:{...x,equipped:false});render()">${a.equipped?'Снять':'Надеть'}</button>
+      <div class="item-extra" style="display:none">
+        ${a.property?`<div class="item-prop" style="white-space:pre-wrap">${a.property}</div>`:''}
+        ${a.comment?`<div class="item-prop" style="font-style:italic;opacity:.7;white-space:pre-wrap">${a.comment}</div>`:''}
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="font-size:.62rem;padding:6px 10px" onclick="S.armors=S.armors.map(x=>x.id===${a.id}?{...x,equipped:!x.equipped}:{...x,equipped:false});render()">${a.equipped?'Снять':'Надеть'}</button>
+          <button class="btn" style="font-size:.62rem;padding:6px 14px;flex:1" onclick="oEditInvItem('armors',${a.id})">✏ Редактировать</button>
+        </div>
+      </div>
     </div>`,
     "oAddArSmart()"
   )}
 ${invCardSec("accessories","💍 Аксессуары",S.accessories,
-    a=>`<div class="item-card${a.equipped?' equipped':''}" onclick="oEditInvItem('accessories',${a.id})">
-      <div class="item-card-name">${a.name||'—'}</div>
-      <div class="item-qty" onclick="event.stopPropagation()" style="justify-content:center">
-        ${a.bonusTarget?`<span class="item-qty-val" style="font-size:.62rem;color:var(--green)">${a.bonusTarget}: +${a.bonusValue||0}</span>`:'<span class="item-qty-val" style="font-size:.6rem;opacity:.5">нет бонуса</span>'}
+    a=>a&&a.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card${a.equipped?' equipped':''}">
+      <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
+        <div class="item-card-name">${a.name||'—'}</div>
+        ${a.bonusTarget?`<div class="item-prop" style="font-size:.65rem;color:var(--green)">${a.bonusTarget}: +${a.bonusValue||0}</div>`:''}
       </div>
-      ${a.property?`<div class="item-prop">${a.property}</div>`:''}
-      <button class="item-eq-btn${a.equipped?' on':''}" onclick="event.stopPropagation();S.accessories=S.accessories.map(x=>x.id===${a.id}?{...x,equipped:!x.equipped}:x);render()">${a.equipped?'Снять':'Надеть'}</button>
+      <div class="item-extra" style="display:none">
+        ${a.property?`<div class="item-prop" style="white-space:pre-wrap">${a.property}</div>`:''}
+        ${a.comment?`<div class="item-prop" style="font-style:italic;opacity:.7;white-space:pre-wrap">${a.comment}</div>`:''}
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="font-size:.62rem;padding:6px 10px" onclick="S.accessories=S.accessories.map(x=>x.id===${a.id}?{...x,equipped:!x.equipped}:x);render()">${a.equipped?'Снять':'Надеть'}</button>
+          <button class="btn" style="font-size:.62rem;padding:6px 14px;flex:1" onclick="oEditInvItem('accessories',${a.id})">✏ Редактировать</button>
+        </div>
+      </div>
     </div>`,
     "oAddAcSmart()"
   )}
-${invCardSec("alch","⚗ Алхимические",S.alchItems,
-    it=>`<div class="item-card" onclick="oEditInvItem('alch',${it.id})">
-      <div class="item-card-name">${it.name||'—'}</div>
-      <div class="item-qty" onclick="event.stopPropagation()">
-        <button class="item-qty-btn" onclick="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
-        <span class="item-qty-val">${it.qty||1}</span>
-        <button class="item-qty-btn" onclick="S.alchItems=S.alchItems.map(x=>x.id===${it.id}?{...x,qty:(x.qty||1)+1}:x);render()">+</button>
+${invCardSec("clothing","👗 Одежда",(S.clothing||[]),
+    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card${it.equipped?' equipped':''}">
+      <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
+        <div class="item-card-name">${it.name||'—'}</div>
       </div>
-      ${it.attribute?`<div class="item-prop">Ур.${it.level||1} · ${it.attribute}</div>`:''}
-      ${it.property?`<div class="item-prop">${it.property}</div>`:''}
+      <div class="item-extra" style="display:none">
+        ${it.property?`<div class="item-prop" style="white-space:pre-wrap">${it.property}</div>`:''}
+        ${it.comment?`<div class="item-prop" style="font-style:italic;opacity:.7;white-space:pre-wrap">${it.comment}</div>`:''}
+        <div class="item-qty" onclick="event.stopPropagation()">
+          <button class="item-qty-btn" onclick="S.clothing=S.clothing.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
+          <span class="item-qty-val">${it.qty!=null?it.qty:1}</span>
+          <button class="item-qty-btn" onclick="S.clothing=S.clothing.map(x=>x.id===${it.id}?{...x,qty:(x.qty||0)+1}:x);render()">+</button>
+        </div>
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="font-size:.62rem;padding:6px 10px" onclick="S.clothing=S.clothing.map(x=>x.id===${it.id}?{...x,equipped:!x.equipped}:x);render()">${it.equipped?'Снять':'Надеть'}</button>
+          <button class="btn" style="font-size:.62rem;padding:6px 14px;flex:1" onclick="oEditInvItem('clothing',${it.id})">✏ Редактировать</button>
+        </div>
+      </div>
+    </div>`,
+    "oAddClothSmart()"
+  )}
+${invCardSec("alch","⚗ Алхимические",S.alchItems,
+    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card">
+      <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
+        <div class="item-card-name">${it.name||'—'}</div>
+        ${it.attribute?`<div class="item-prop" style="font-size:.65rem">${it.level||1} · ${it.attribute}</div>`:''}
+      </div>
+      <div class="item-extra" style="display:none">
+        ${it.property?`<div class="item-prop" style="white-space:pre-wrap">${it.property}</div>`:''}
+        ${it.comment?`<div class="item-prop" style="font-style:italic;opacity:.7;white-space:pre-wrap">${it.comment}</div>`:''}
+        <div class="item-qty" onclick="event.stopPropagation()">
+          <button class="item-qty-btn" onclick="changeAlchItemQty(${it.id},-1)">−</button>
+          <span class="item-qty-val">${it.qty!=null?it.qty:1}</span>
+          <button class="item-qty-btn" onclick="changeAlchItemQty(${it.id},1)">+</button>
+        </div>
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="font-size:.62rem;padding:6px 14px;flex:1" onclick="oEditInvItem('alch',${it.id})">✏ Редактировать</button>
+        </div>
+      </div>
     </div>`,
     "oAddAlch()"
   )}
 ${invCardSec("potions","🧪 Зелья",S.potions,
-    it=>`<div class="item-card" onclick="oEditInvItem('potions',${it.id})">
-      <div class="item-card-name">${it.name||'—'}</div>
-      ${it.consumable?`<div class="item-qty" onclick="event.stopPropagation()">
-        <button class="item-qty-btn" onclick="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
-        <span class="item-qty-val">${it.qty||1}</span>
-        <button class="item-qty-btn" onclick="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,qty:(it.qty||1)+1}:x);render()">+</button>
-      </div>`:''}
-      ${it.property?`<div class="item-prop">${it.property}</div>`:''}
+    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card">
+      <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
+        <div class="item-card-name">${it.name||'—'}</div>
+      </div>
+      <div class="item-extra" style="display:none">
+        ${it.property?`<div class="item-prop" style="white-space:pre-wrap">${it.property}</div>`:''}
+        ${it.comment?`<div class="item-prop" style="font-style:italic;opacity:.7;white-space:pre-wrap">${it.comment}</div>`:''}
+        <div class="item-qty" onclick="event.stopPropagation()">
+          <button class="item-qty-btn" onclick="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
+          <span class="item-qty-val">${it.qty!=null?it.qty:1}</span>
+          <button class="item-qty-btn" onclick="S.potions=S.potions.map(x=>x.id===${it.id}?{...x,qty:(x.qty||0)+1}:x);render()">+</button>
+        </div>
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="font-size:.62rem;padding:6px 14px;flex:1" onclick="oEditInvItem('potions',${it.id})">✏ Редактировать</button>
+        </div>
+      </div>
     </div>`,
     "oAddPotSmart()"
   )}
 ${invCardSec("misc","📦 Остальное",S.misc,
-    it=>`<div class="item-card" onclick="oEditInvItem('misc',${it.id})">
-      <div class="item-card-name">${it.name||'—'}</div>
-      ${it.consumable?`<div class="item-qty" onclick="event.stopPropagation()">
-        <button class="item-qty-btn" onclick="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
-        <span class="item-qty-val">${it.qty||1}</span>
-        <button class="item-qty-btn" onclick="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,qty:(it.qty||1)+1}:x);render()">+</button>
-      </div>`:''}
-      ${it.property?`<div class="item-prop">${it.property}</div>`:''}
+    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card">
+      <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
+        <div class="item-card-name">${it.name||'—'}</div>
+      </div>
+      <div class="item-extra" style="display:none">
+        ${it.property?`<div class="item-prop" style="white-space:pre-wrap">${it.property}</div>`:''}
+        ${it.comment?`<div class="item-prop" style="font-style:italic;opacity:.7;white-space:pre-wrap">${it.comment}</div>`:''}
+        <div class="item-qty" onclick="event.stopPropagation()">
+          <button class="item-qty-btn" onclick="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,qty:Math.max(0,x.qty-1)}:x);render()">−</button>
+          <span class="item-qty-val">${it.qty!=null?it.qty:1}</span>
+          <button class="item-qty-btn" onclick="S.misc=S.misc.map(x=>x.id===${it.id}?{...x,qty:(x.qty||0)+1}:x);render()">+</button>
+        </div>
+        <div class="row" style="gap:6px;margin-top:6px">
+          <button class="btn" style="font-size:.62rem;padding:6px 14px;flex:1" onclick="oEditInvItem('misc',${it.id})">✏ Редактировать</button>
+        </div>
+      </div>
     </div>`,
     "oAddMiscSmart()"
   )}
 `;
 }
 
+function addSeparator(arrName){
+  var key=arrName;
+  var arrMap={weapons:'weapons',armors:'armors',accessories:'accessories',clothing:'clothing',alch:'alchItems',potions:'potions',misc:'misc'};
+  var realKey=arrMap[key]||key;
+  S[realKey].push({id:Date.now(),type:'separator'});
+  render();
+}
+
 function invCardSec(key,title,items,cardFn,addFn){
   const open=invOpen[key];
+  const realItems=items.filter(function(it){return it&&it.type!=='separator';}).length;
   return `<div class="card${open?'':' collapsed'}" id="inv-sec-${key}" style="margin-bottom:14px">
     <div class="stitle stitle-clickable" onclick="invOpen['${key}']=!invOpen['${key}'];render()">
-      <div class="orn-diamond"></div> ${title} <span class="text-dim fs-xs" style="font-weight:normal;letter-spacing:0">· ${items.length}</span>
+      <div class="orn-diamond"></div> ${title} <span class="text-dim fs-xs" style="font-weight:normal;letter-spacing:0">· ${realItems}</span>
       <div class="orn-diamond"></div><div class="sline"></div>
       <span class="sec-grp-chevron">▼</span>
     </div>
@@ -1133,13 +1216,14 @@ function invCardSec(key,title,items,cardFn,addFn){
       <div class="items-grid">
         ${items.map(cardFn).join("")}
         <div class="item-card grid-add" style="min-height:88px" onclick="${addFn}">+</div>
+        <div class="item-card grid-add" style="min-height:40px;font-size:.7rem;opacity:.5" onclick="addSeparator('${key}')">—</div>
       </div>
     </div>
   </div>`;
 }
 
 function oEditInvItem(type,id){
-  const arrMap={weapons:S.weapons,armors:S.armors,accessories:S.accessories,alch:S.alchItems,potions:S.potions,misc:S.misc};
+  const arrMap={weapons:S.weapons,armors:S.armors,accessories:S.accessories,clothing:S.clothing||[],alch:S.alchItems,potions:S.potions,misc:S.misc};
   const arr=arrMap[type];
   const it=arr&&arr.find(x=>x.id===id);
   if(!it)return;
@@ -1147,7 +1231,7 @@ function oEditInvItem(type,id){
   var fn=(k,v,t)=>`<label class="fl">${k}</label><input class="inp" type="${t||'text'}" id="eii_${k.replace(/\s/g,'_')}" value="${v||''}">`;
   var html=`<div class="mtitle">Редактировать: ${it.name||'предмет'}</div>`;
   html+=fn('Название',it.name);
-  if(type==='weapons'){html+=fn('Урон',it.damage)+fn('Бонусный урон',it.bonusDamage);}
+  if(type==='weapons'){html+=fn('Урон',it.damage)+fn('Бонусный урон',it.bonusDamage)+_wpCatHtml(it.categories||[]);}
   if(type==='armors'){html+=fn('Броня',it.armorValue,'number');}
   if(type==='accessories'){
     html+=`<label class="fl">Бонус к</label><select class="inp" id="eii_bonusTarget">`+["","Броня","Максимум HP","Урон","Бонусный урон","Сила","Ловкость","Живучесть","Интеллект","Торговля","Талант","Мана"].map(x=>`<option${x===it.bonusTarget?' selected':''}>${x}</option>`).join('')+`</select>`;
@@ -1158,6 +1242,9 @@ function oEditInvItem(type,id){
   if(type!=='alch'){
     html+=`<label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer;font-size:.78rem;color:var(--text-dim)"><input type="checkbox" id="eii_consumable" ${it.consumable?'checked':''}> Расходуемое (показывать количество)</label>`;
   }
+  if(type==='clothing'){
+    html+=`<label style="display:flex;align-items:center;gap:8px;margin-top:6px;cursor:pointer;font-size:.78rem;color:var(--text-dim)"><input type="checkbox" id="eii_equipped" ${it.equipped?'checked':''}> Надето</label>`;
+  }
   html+=`<div class="row" style="margin-top:14px">
     <button class="bpri" onclick="_saveInvItem('${type}',${id})">Сохранить</button>
     <button class="bdng" onclick="_deleteInvItem('${type}',${id})">✕ Удалить</button>
@@ -1166,7 +1253,7 @@ function oEditInvItem(type,id){
   openMod(html);
 }
 function _deleteInvItem(type,id){
-  var keyMap={weapons:'weapons',armors:'armors',accessories:'accessories',alch:'alchItems',potions:'potions',misc:'misc'};
+  var keyMap={weapons:'weapons',armors:'armors',accessories:'accessories',clothing:'clothing',alch:'alchItems',potions:'potions',misc:'misc'};
   var k=keyMap[type];if(!k)return;
   var arr=S[k];var it=arr&&arr.find(function(x){return x.id===id;});
   var nm=it&&it.name?it.name:'предмет';
@@ -1178,15 +1265,16 @@ function _deleteInvItem(type,id){
 function _saveInvItem(type,id){
   var g=k=>document.getElementById('eii_'+k.replace(/\s/g,'_'));
   var v=k=>(g(k)?g(k).value:'');
-  var arrKey={weapons:'weapons',armors:'armors',accessories:'accessories',alch:'alchItems',potions:'potions',misc:'misc'}[type];
+  var arrKey={weapons:'weapons',armors:'armors',accessories:'accessories',clothing:'clothing',alch:'alchItems',potions:'potions',misc:'misc'}[type];
   S[arrKey]=S[arrKey].map(x=>{
     if(x.id!==id)return x;
     var u={...x,name:v('Название'),property:v('Свойство'),comment:v('Заметка')};
-    if(type==='weapons'){u.damage=v('Урон');u.bonusDamage=v('Бонусный_урон');}
+    if(type==='weapons'){u.damage=v('Урон');u.bonusDamage=v('Бонусный_урон');u.categories=_getWpCats();}
     if(type==='armors'){u.armorValue=+v('Броня')||0;}
     if(type==='accessories'){u.bonusTarget=v('Бонус_к');u.bonusValue=+v('Значение_бонуса')||0;}
     if(type==='alch'){u.level=+v('Уровень')||1;u.attribute=v('Атрибут');}
     if(type!=='alch'){var ce=document.getElementById('eii_consumable');u.consumable=ce?ce.checked:false;}
+    if(type==='clothing'){var eq=document.getElementById('eii_equipped');u.equipped=eq?eq.checked:false;}
     return u;
   });
   closeMod();render();ntf('Сохранено','#27ae60');
@@ -1198,6 +1286,23 @@ function alchLabel(it){return it?it.name+" [ур."+it.level+", "+it.attribute+"]
 function alchFind(id){return S.alchDB.find(x=>x.id===id);}
 function alchTimePretty(ts){const d=new Date(ts);return [d.getHours(),d.getMinutes(),d.getSeconds()].map(x=>String(x).padStart(2,"0")).join(":");}
 function alchLog(type,txt,extra){S.alchHistory.unshift({t:Date.now(),type,txt,extra:extra||""});if(S.alchHistory.length>200)S.alchHistory=S.alchHistory.slice(0,200);}
+
+function changeAlchItemQty(itemId,delta){
+  var item=S.alchItems.find(x=>x.id===itemId);
+  if(!item)return;
+  item.qty=Math.max(0,(item.qty||0)+delta);
+  // sync to alchInventory by name match
+  var dbEntry=S.alchDB.find(x=>x.name===item.name);
+  if(dbEntry){
+    var invEntry=S.alchInventory.find(x=>x.dbId===dbEntry.id);
+    if(invEntry){
+      invEntry.qty=item.qty;
+      if(invEntry.qty<=0)S.alchInventory=S.alchInventory.filter(x=>x.dbId!==dbEntry.id);
+    }
+  }
+  if(item.qty<=0)S.alchItems=S.alchItems.filter(x=>x.id!==itemId);
+  render();
+}
 
 function alchQtyChange(dbId,delta){
   const it=alchFind(dbId);
@@ -1306,14 +1411,15 @@ function rAlch(){
 
   // section card wrapper — collapse driven by alchSectOpen
   function aCard(key,title,body,extra){
-    var col=!alchSectOpen[key]?' collapsed':'';
+    var open=alchSectOpen[key];
+    var col=!open?' collapsed':'';
     return '<div class="card'+col+'">'
       +'<div class="flex-between" style="margin-bottom:0">'
       +'<div class="stitle stitle-clickable" style="margin-bottom:0" onclick="alchSectOpen.'+key+'=!alchSectOpen.'+key+';render()">'
       +'<div class="orn-diamond"></div> '+title+' <div class="orn-diamond"></div>'
       +'<span class="sec-grp-chevron">▼</span>'
       +'</div>'
-      +(extra?'<div onclick="event.stopPropagation()" style="flex-shrink:0">'+extra+'</div>':'')
+      +(extra&&open?'<div onclick="event.stopPropagation()" style="flex-shrink:0">'+extra+'</div>':'')
       +'</div>'
       +'<div class="sec-grp-body" style="margin-top:10px">'+body+'</div>'
       +'</div>';
@@ -1344,7 +1450,7 @@ function rAlch(){
       const it=alchFind(entry.dbId);if(!it)continue;
       invCardsHtml+='<div class="alch-item-card">'
         +'<div class="alch-item-name">'+it.name+'</div>'
-        +'<div class="alch-item-tags"><span class="tg '+lvlTg(it.level)+'">Ур. '+it.level+'</span><span class="tg tg-dim">'+it.attribute+'</span></div>'
+        +'<div class="alch-item-tags"><span class="tg '+lvlTg(it.level)+'">'+it.level+'</span><span class="tg tg-dim">'+it.attribute+'</span></div>'
         +'<div style="display:flex;align-items:center;justify-content:center;gap:3px;margin-top:auto">'
         +'<button class="item-qty-btn" onclick="alchQtyChange(\''+entry.dbId+'\',-1)">−</button>'
         +'<span class="item-qty-val">'+entry.qty+'</span>'
@@ -1372,7 +1478,7 @@ function rAlch(){
   const invExtraHdr='<div class="alch-ctrl-bar">'
     +'<button class="alch-icon-btn'+(alchInvGroupVisible?" active":"")+'" onclick="alchInvGroupVisible=!alchInvGroupVisible;render()" title="Группировка">⊞</button>'
     +'<button class="alch-icon-btn'+(alchInvSortVisible?" active":"")+'" onclick="alchInvSortVisible=!alchInvSortVisible;render()" title="Сортировка">↕</button>'
-    +'<button class="btn" style="font-size:.5rem;flex-shrink:0" onclick="oSetAlchChance()">🎲 '+S.alchSuccessChance+'%</button>'
+    +'<button class="alch-icon-btn" onclick="oSetAlchChance()" title="Шанс успеха">🎲 '+S.alchSuccessChance+'%</button>'
     +'</div>';
 
   // ── 2. RECIPE CARDS (базовая реакция + круг) ──────────────────────────────────
@@ -1380,11 +1486,17 @@ function rAlch(){
     if(!arr.length)return '<div style="color:var(--text-dim);font-size:.78rem;padding:8px;text-align:center;font-style:italic">Нет рецептов</div>';
     return arr.map((r,i)=>{
       const prod=alchFind(r.resultId);
-      const reagHtml=r.reagentIds.map(rid=>{const it=alchFind(rid);return '<div class="alch-recipe-ing">'+(it?'<span class="tg tg-dim" style="font-size:.42rem;padding:1px 5px">Ур.'+it.level+'</span>'+it.name:'?')+'</div>';}).join('');
-      return '<div class="alch-recipe-card" onclick="alchCreate('+i+','+arrName+')">'
+      const canMake=r.reagentIds.every(rid=>{const e=S.alchInventory.find(x=>x.dbId===rid);return e&&e.qty>0;});
+      const reagHtml=r.reagentIds.map(rid=>{
+        const it=alchFind(rid);
+        const inv=S.alchInventory.find(x=>x.dbId===rid);
+        const qty=inv?inv.qty:0;
+        return '<div class="alch-recipe-ing">'+(it?'<span class="tg tg-dim" style="font-size:.42rem;padding:1px 5px">'+it.level+'</span>'+it.name+' <span style="color:'+(qty>0?"#27ae60":"#e05050")+'">×'+qty+'</span>':'?')+'</div>';
+      }).join('');
+      return '<div class="alch-recipe-card" style="'+(canMake?'border-color:#27ae60;box-shadow:0 0 0 1px #27ae60':'')+'" onclick="alchCreate('+i+','+arrName+')">'
         +'<button class="alch-recipe-del" onclick="event.stopPropagation();'+arrName+'.splice('+i+',1);render()">✕</button>'
         +'<div><div class="alch-recipe-result">'+(prod?prod.name:'(удалён)')+'</div>'
-        +(prod?'<div class="alch-item-tags" style="margin-top:3px"><span class="tg '+lvlTg(prod.level)+'">Ур. '+prod.level+'</span><span class="tg tg-dim">'+prod.attribute+'</span></div>':'')
+        +(prod?'<div class="alch-item-tags" style="margin-top:3px"><span class="tg '+lvlTg(prod.level)+'">'+prod.level+'</span><span class="tg tg-dim">'+prod.attribute+'</span></div>':'')
         +'</div>'
         +'<div class="alch-recipe-sep"></div>'
         +'<div class="alch-recipe-ingredients">'+reagHtml+'</div>'
@@ -1416,15 +1528,16 @@ function rAlch(){
     return '<div class="alch-recipe-card" style="cursor:default">'
       +'<button class="alch-recipe-del" onclick="S.procRecipes.splice('+i+',1);render()">✕</button>'
       +'<div><div class="alch-recipe-result">'+(src?src.name:'(удалён)')+'</div>'
-      +(src?'<div class="alch-item-tags" style="margin-top:3px"><span class="tg '+lvlTg(src.level)+'">Ур. '+src.level+'</span><span class="tg tg-dim">'+src.attribute+'</span></div>':'')
+      +(src?'<div class="alch-item-tags" style="margin-top:3px"><span class="tg '+lvlTg(src.level)+'">'+src.level+'</span><span class="tg tg-dim">'+src.attribute+'</span></div>':'')
       +'</div>'
       +'<div class="alch-recipe-sep"></div>'
       +'<div class="alch-recipe-ingredients"><div class="alch-recipe-ing" style="color:var(--gold)">→ '+(res?res.name:'(удалён)')+'</div></div>'
       +'</div>';
   }).join('')||'<div style="color:var(--text-dim);font-size:.78rem;padding:8px;text-align:center;font-style:italic">Нет рецептов</div>';
   const procBody=hasProcessing
-    ?procForm+'<div class="alch-recipe-grid">'+procCardsHtml+'</div>'
+    ?(procFormOpen?procForm:'')+'<div class="alch-recipe-grid">'+procCardsHtml+'</div>'
     :lockedMsg("Обработка алхимических ингредиентов");
+  const procExtraHdr=hasProcessing?'<button class="alch-icon-btn'+(procFormOpen?" active":"")+'" onclick="procFormOpen=!procFormOpen;render()" title="Добавить рецепт обработки">+</button>':"";
 
   // ── 4. BASE DB ────────────────────────────────────────────────────────────────
   const groups=alchSortedFiltered();
@@ -1434,7 +1547,7 @@ function rAlch(){
     for(const bit of bg.items){
       baseCardsHtml+='<div class="alch-base-card">'
         +'<div class="alch-base-name">'+bit.name+'</div>'
-        +'<div class="alch-item-tags"><span class="tg '+lvlTg(bit.level)+'">Ур. '+bit.level+'</span><span class="tg tg-dim">'+bit.attribute+'</span></div>'
+        +'<div class="alch-item-tags"><span class="tg '+lvlTg(bit.level)+'">'+bit.level+'</span><span class="tg tg-dim">'+bit.attribute+'</span></div>'
         +'<div class="alch-base-actions">'
         +'<button class="alch-add-inv-btn" onclick="alchQtyChange(\''+bit.id+'\',1)">+ в инв.</button>'
         +'<button class="bdng" style="padding:2px 6px;font-size:.5rem" onclick="alchDelFromDB(\''+bit.id+'\')">✕</button>'
@@ -1460,7 +1573,7 @@ function rAlch(){
     +'<button class="alch-icon-btn'+(alchBaseGroupVisible?" active":"")+'" onclick="alchBaseGroupVisible=!alchBaseGroupVisible;render()" title="Группировка">⊞</button>'
     +'<button class="alch-icon-btn'+(alchBaseSortVisible?" active":"")+'" onclick="alchBaseSortVisible=!alchBaseSortVisible;render()" title="Сортировка">↕</button>'
     +'<input class="inp" placeholder="Поиск..." style="width:80px;padding:4px 6px;font-size:.62rem" oninput="alchBaseSearch=this.value;render()" value="'+alchBaseSearch+'">'
-    +'<button class="btn" style="font-size:.5rem;flex-shrink:0" onclick="openAlchItemModal()">+ Добавить</button>'
+    +'<button class="alch-icon-btn" onclick="openAlchItemModal()" title="Добавить предмет">+</button>'
     +'</div>';
 
   // ── 5. HISTORY ────────────────────────────────────────────────────────────────
@@ -1477,7 +1590,7 @@ function rAlch(){
   return aCard("inv","Инвентарь алхимика",invBody,invExtraHdr)
     +aCard("recipes","Базовая реакция",rxnBody,hasBaseReaction?addRecipeBtn:"")
     +aCard("circle","Алхимический круг",circleBody,hasCircle?addRecipeBtn:"")
-    +aCard("proc","Рецепты обработки",procBody,"")
+    +aCard("proc","Рецепты обработки",procBody,procExtraHdr)
     +aCard("base","База предметов",baseBody,baseExtraHdr)
     +aCard("hist","История",histBody,histExtraHdr);
 }
@@ -1578,15 +1691,52 @@ function rQNPC(){
       +'</div></div></div>';
   }).join("");
 
-  var npcHtml='<div class="npc-grid">'
-    +S.npcs.map(function(n){
-      return '<div class="npc-card" onclick="oEditNPC('+n.id+')">'
-        +'<div class="npc-card-name">'+n.name+'</div>'
-        +(n.notes?'<div class="npc-card-notes">'+n.notes+'</div>':"")
-        +'</div>';
-    }).join("")
-    +'<div class="npc-card grid-add" onclick="oAddNPC()">+</div>'
+  // NPC sort & group
+  var npcList=[].concat(S.npcs);
+  if(npcGroupBy==="alive"){
+    // split into alive and dead
+  } else if(npcSortBy==="name"){
+    npcList.sort(function(a,b){return (a.name||'').localeCompare(b.name||'','ru');});
+  } else if(npcSortBy==="location"){
+    npcList.sort(function(a,b){return (a.location||'').localeCompare(b.location||'','ru');});
+  }
+
+  var npcSortBar='<div class="row" style="gap:6px;flex-wrap:wrap;margin-bottom:10px;font-size:.68rem">'
+    +'<span style="color:var(--text-dim)">Сорт:</span>'
+    +'<button class="btn" style="font-size:.62rem;padding:2px 8px'+(npcSortBy==="name"?';border-color:var(--gold)':'')+'" onclick="npcSortBy=\'name\';render()">Имя</button>'
+    +'<button class="btn" style="font-size:.62rem;padding:2px 8px'+(npcSortBy==="location"?';border-color:var(--gold)':'')+'" onclick="npcSortBy=\'location\';render()">Место</button>'
+    +'<span style="color:var(--text-dim);margin-left:4px">Группа:</span>'
+    +'<button class="btn" style="font-size:.62rem;padding:2px 8px'+(npcGroupBy==="alive"?';border-color:var(--gold)':'')+'" onclick="npcGroupBy=npcGroupBy===\'alive\'?\'\':\'alive\';render()">Живые/Мёртвые</button>'
     +'</div>';
+
+  function npcCardsHtml(list){
+    return '<div class="npc-grid">'
+      +list.map(function(n){
+        var alive=n.alive!==false;
+        return '<div class="npc-card" onclick="oEditNPC('+n.id+')">'
+          +'<div style="display:flex;align-items:center;gap:5px">'
+          +'<span style="font-size:.7rem;'+(alive?'color:var(--green)':'color:var(--red)')+'">'+(alive?'✓':'✗')+'</span>'
+          +'<div class="npc-card-name" style="margin:0">'+n.name+'</div>'
+          +'</div>'
+          +(n.location?'<div style="font-size:.62rem;color:var(--text-dim);margin-top:2px">📍 '+n.location+'</div>':"")
+          +(n.notes?'<div class="npc-card-notes">'+n.notes+'</div>':"")
+          +'</div>';
+      }).join("")
+      +'<div class="npc-card grid-add" onclick="oAddNPC()">+</div>'
+      +'</div>';
+  }
+
+  var npcHtml;
+  if(npcGroupBy==="alive"){
+    var aliveNpcs=npcList.filter(function(n){return n.alive!==false;});
+    var deadNpcs=npcList.filter(function(n){return n.alive===false;});
+    npcHtml='<div style="font-size:.7rem;color:var(--green);font-weight:bold;margin-bottom:6px">Живые ('+aliveNpcs.length+')</div>'
+      +npcCardsHtml(aliveNpcs)
+      +'<div style="font-size:.7rem;color:var(--red);font-weight:bold;margin:10px 0 6px">Мёртвые ('+deadNpcs.length+')</div>'
+      +npcCardsHtml(deadNpcs);
+  } else {
+    npcHtml=npcCardsHtml(npcList);
+  }
 
   return '<div class="card">'
     +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
@@ -1602,10 +1752,11 @@ function rQNPC(){
       :'')
     +'</div>'
     +'<div class="card">'
-    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:12px">'
+    +'<div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">'
     +'<div class="stitle" style="margin-bottom:0"><div class="orn-diamond"></div> НПС <div class="orn-diamond"></div><div class="sline"></div></div>'
     +'<button class="btn" onclick="oAddNPC()">+ НПС</button></div>'
-    +(S.npcs.length===0&&!S.npcs.length?'<div style="color:var(--text-dim);font-size:.8rem;margin-bottom:8px">Нет НПС</div>':'')
+    +npcSortBar
+    +(S.npcs.length===0?'<div style="color:var(--text-dim);font-size:.8rem;margin-bottom:8px">Нет НПС</div>':'')
     +npcHtml
     +'</div>';
 }
@@ -1624,8 +1775,12 @@ function render(){
 
   var hdrSubEl=document.getElementById("hdrSub");
   if(hdrSubEl){
-    var profNames=S.professions.map(function(p){return p.uniqueName||p.name;}).join(" · ");
-    hdrSubEl.textContent=profNames||"";
+    if(typeof PLAT!=='undefined'&&PLAT.name==='vk'){
+      hdrSubEl.textContent="";
+    } else {
+      var profNames=S.professions.map(function(p){return p.uniqueName||p.name;}).join(" · ");
+      hdrSubEl.textContent=profNames||"";
+    }
   }
   var ph=document.getElementById("char-photo");
   if(ph){
@@ -1667,12 +1822,12 @@ function sAttr(){Object.keys(AT).forEach(function(k){S.attributes[k]=parseInt(do
 
 // ── SKILL MODALS ──────────────────────────────────────────────────────────────
 
-function oAddSk(){
+function oAddSk(presetSource){
   var srcOpts=Object.values(AT).concat(S.professions.map(function(p){return p.name;})).concat(["Другое"]);
   openMod('<div class="mtitle">Новый навык</div>'
     +'<label class="fl">Название</label><input class="inp" id="sk_n">'
     +'<label class="fl">Уровень навыка</label><input class="inp" type="number" id="sk_lv" value="1" min="1">'
-    +'<label class="fl">Источник</label><select class="inp" id="sk_src">'+srcOpts.map(function(o){return '<option>'+o+'</option>';}).join("")+'</select>'
+    +'<label class="fl">Источник</label><select class="inp" id="sk_src">'+srcOpts.map(function(o){return '<option'+(presetSource&&o===presetSource?' selected':'')+'>'+o+'</option>';}).join("")+'</select>'
     +'<label class="fl">Тип</label><select class="inp" id="sk_t"><option value="passive">Пассивный</option><option value="active">Активный</option></select>'
     +'<label class="fl">Описание</label><textarea class="inp" id="sk_d"></textarea>'
     +'<label class="fl">Свойство</label><input class="inp" id="sk_prop">'
@@ -1743,7 +1898,7 @@ function confirmDeleteAch(id){
 // ── PROFESSION MODALS ─────────────────────────────────────────────────────────
 
 function oAddPr(){
-  var KAREAS=["","Лечение","Алхимия","Магия","Бой"];
+  var KAREAS=["","Лечение","Алхимия","Магия","Бой","Ремесло"];
   openMod('<div class="mtitle">Новая профессия</div>'
     +'<label class="fl">Системное название <span style="color:#e05050">*</span></label><input class="inp" id="pr_n" placeholder="напр. Алхимик">'
     +'<div style="font-size:.68rem;color:#7a6a52;margin:-6px 0 8px">По этому названию строятся связи с навыками</div>'
@@ -1760,7 +1915,7 @@ function sPr(){
 }
 function oEditProf(id){
   var p=S.professions.find(function(x){return x.id===id;});if(!p)return;
-  var KAREAS=["","Лечение","Алхимия","Магия","Бой"];
+  var KAREAS=["","Лечение","Алхимия","Магия","Бой","Ремесло"];
   openMod('<div class="mtitle">Редактировать профессию</div>'
     +'<label class="fl">Системное название</label><input class="inp" id="ep_n" value="'+p.name+'">'
     +'<label class="fl">Уникальное название</label><input class="inp" id="ep_un" value="'+(p.uniqueName||'')+'">'
@@ -1793,12 +1948,38 @@ function deleteProf(id){
   closeMod();ntf("Профессия удалена");render();
 }
 function oSetKnowledge(id){
-  var KAREAS=["Лечение","Алхимия","Магия","Бой"];
+  var KAREAS=["Лечение","Алхимия","Магия","Бой","Ремесло"];
   openMod('<div class="mtitle">Область знаний</div>'
     +'<div style="display:flex;flex-direction:column;gap:8px;margin-bottom:16px">'
     +KAREAS.map(function(k){return '<button class="btn" style="text-align:left;padding:10px 14px;font-size:.85rem" onclick="S.professions=S.professions.map(x=>x.id==='+id+'?{...x,knowledgeArea:\''+k+'\'}:x);closeMod();render()">'+k+'</button>';}).join("")
     +'</div>'
     +'<button class="btn" style="width:100%" onclick="closeMod()">Отмена</button>');
+}
+
+function openProfExpModal(profId){
+  var p=S.professions.find(function(x){return x.id===profId;});if(!p)return;
+  var displayName=p.uniqueName||p.name;
+  openMod('<div class="mtitle">Опыт: '+displayName+'</div>'
+    +'<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:10px">'
+    +'<div><label class="fl">Текущий опыт</label><input class="inp" type="number" id="pexp_cur" value="'+p.exp+'" min="0"></div>'
+    +'<div><label class="fl">Следующий порог</label><input class="inp" type="number" id="pexp_next" value="'+p.expNext+'" min="1"></div>'
+    +'</div>'
+    +'<div class="row" style="margin-bottom:10px;flex-wrap:wrap">'
+    +'<button class="btn" onclick="document.getElementById(\'pexp_cur\').value=Math.max(0,+(document.getElementById(\'pexp_cur\').value||0)+10)">+10</button>'
+    +'<button class="btn" onclick="document.getElementById(\'pexp_cur\').value=Math.max(0,+(document.getElementById(\'pexp_cur\').value||0)+25)">+25</button>'
+    +'<button class="btn" onclick="document.getElementById(\'pexp_cur\').value=Math.max(0,+(document.getElementById(\'pexp_cur\').value||0)+50)">+50</button>'
+    +'<button class="btn" onclick="document.getElementById(\'pexp_cur\').value=Math.max(0,+(document.getElementById(\'pexp_cur\').value||0)+100)">+100</button>'
+    +'</div>'
+    +'<div class="row" style="margin-top:6px">'
+    +'<button class="bpri" style="flex:1" onclick="saveProfExp('+profId+')">Сохранить</button>'
+    +'<button class="btn" onclick="closeMod()">Отмена</button>'
+    +'</div>');
+}
+function saveProfExp(profId){
+  var cur=+document.getElementById('pexp_cur').value||0;
+  var nxt=+document.getElementById('pexp_next').value||1;
+  S.professions=S.professions.map(function(p){return p.id===profId?Object.assign({},p,{exp:Math.max(0,cur),expNext:Math.max(1,nxt)}):p;});
+  closeMod();ntf("Опыт профессии обновлён");render();
 }
 
 // ── ACHIEVEMENT MODALS ────────────────────────────────────────────────────────
@@ -1827,8 +2008,11 @@ function addFromDB_misc(gid){var r=S.globalItemDB.find(function(x){return x.id==
 
 var _consumableCbHtml='<label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer;font-size:.78rem;color:var(--text-dim)"><input type="checkbox" id="add_consumable"> Расходуемое (показывать количество)</label>';
 function _getConsumable(){var el=document.getElementById('add_consumable');return el?el.checked:false;}
-function oAddWpSmart(){smartModal("Оружие","weapon",'<label class="fl">Название</label><input class="inp" id="wp_n"><label class="fl">Урон</label><input class="inp" id="wp_d" placeholder="напр. 1d8+3"><label class="fl">Бонусный урон</label><input class="inp" id="wp_b" placeholder="напр. +2 огня"><label class="fl">Свойство</label><input class="inp" id="wp_p"><label class="fl">Комментарий</label><input class="inp" id="wp_c">'+_consumableCbHtml+'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sWp()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
-function sWp(){var n=document.getElementById("wp_n").value.trim();if(!n)return;var item={id:Date.now(),name:n,damage:document.getElementById("wp_d").value,bonusDamage:document.getElementById("wp_b").value,property:document.getElementById("wp_p").value,comment:document.getElementById("wp_c").value,qty:1,equipped:false,consumable:_getConsumable()};S.weapons.push(item);addToGlobalDB({name:n,type:"weapon",damage:item.damage,bonusDamage:item.bonusDamage,property:item.property});closeMod();ntf("Оружие добавлено");render();}
+var _WP_CATS=["Лёгкое","Тяжёлое","Метательное","Стрелковое"];
+function _wpCatHtml(sel){return '<label class="fl">Категории</label><div style="display:flex;flex-wrap:wrap;gap:8px;margin-top:4px">'+_WP_CATS.map(function(c){return '<label style="display:flex;align-items:center;gap:5px;font-size:.75rem;color:var(--text-dim);cursor:pointer"><input type="checkbox" class="wp_cat_cb" value="'+c+'"'+(sel&&sel.includes(c)?' checked':'')+'>'+c+'</label>';}).join("")+'</div>';}
+function _getWpCats(){return _WP_CATS.filter(function(c){var cbs=document.querySelectorAll('.wp_cat_cb');for(var i=0;i<cbs.length;i++){if(cbs[i].value===c&&cbs[i].checked)return true;}return false;});}
+function oAddWpSmart(){smartModal("Оружие","weapon",'<label class="fl">Название</label><input class="inp" id="wp_n"><label class="fl">Урон</label><input class="inp" id="wp_d" placeholder="напр. 1d8+3"><label class="fl">Бонусный урон</label><input class="inp" id="wp_b" placeholder="напр. +2 огня"><label class="fl">Свойство</label><input class="inp" id="wp_p"><label class="fl">Комментарий</label><input class="inp" id="wp_c">'+_wpCatHtml([])+_consumableCbHtml+'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sWp()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
+function sWp(){var n=document.getElementById("wp_n").value.trim();if(!n)return;var item={id:Date.now(),name:n,damage:document.getElementById("wp_d").value,bonusDamage:document.getElementById("wp_b").value,property:document.getElementById("wp_p").value,comment:document.getElementById("wp_c").value,qty:1,equipped:false,consumable:_getConsumable(),categories:_getWpCats()};S.weapons.push(item);addToGlobalDB({name:n,type:"weapon",damage:item.damage,bonusDamage:item.bonusDamage,property:item.property});closeMod();ntf("Оружие добавлено");render();}
 function oAddArSmart(){smartModal("Доспех","armor",'<label class="fl">Название</label><input class="inp" id="ar_n"><label class="fl">Значение брони</label><input class="inp" type="number" id="ar_v" value="0"><label class="fl">Свойство</label><input class="inp" id="ar_p"><label class="fl">Комментарий</label><input class="inp" id="ar_c">'+_consumableCbHtml+'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sAr()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
 function sAr(){var n=document.getElementById("ar_n").value.trim();if(!n)return;var item={id:Date.now(),name:n,armorValue:+document.getElementById("ar_v").value||0,property:document.getElementById("ar_p").value,comment:document.getElementById("ar_c").value,qty:1,equipped:false,consumable:_getConsumable()};S.armors.push(item);addToGlobalDB({name:n,type:"armor",armorValue:item.armorValue,property:item.property});closeMod();ntf("Доспех добавлен");render();}
 function oAddAcSmart(){
@@ -1849,7 +2033,41 @@ function oAddPotSmart(){smartModal("Зелье / аптечка","potion",'<labe
 function sPotion(){var n=document.getElementById("pot_n").value.trim();if(!n)return;var item={id:Date.now(),name:n,property:document.getElementById("pot_p").value,comment:document.getElementById("pot_c").value,qty:1,consumable:_getConsumable()};S.potions.push(item);addToGlobalDB({name:n,type:"potion",property:item.property});closeMod();ntf("Добавлено");render();}
 function oAddMiscSmart(){smartModal("Предмет","misc",'<label class="fl">Название</label><input class="inp" id="mi_n"><label class="fl">Свойство</label><input class="inp" id="mi_p"><label class="fl">Комментарий</label><input class="inp" id="mi_c">'+_consumableCbHtml+'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sMisc()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
 function sMisc(){var n=document.getElementById("mi_n").value.trim();if(!n)return;var item={id:Date.now(),name:n,property:document.getElementById("mi_p").value,comment:document.getElementById("mi_c").value,qty:1,consumable:_getConsumable()};S.misc.push(item);addToGlobalDB({name:n,type:"misc",property:item.property});closeMod();ntf("Добавлено");render();}
-function oAddAlch(){openMod('<div class="mtitle">Алхимический предмет</div><label class="fl">Название</label><input class="inp" id="al_n"><label class="fl">Уровень</label><input class="inp" type="number" id="al_l" value="1"><label class="fl">Атрибут</label><input class="inp" id="al_a" placeholder="напр. Огонь"><label class="fl">Свойство</label><input class="inp" id="al_p"><label class="fl">Комментарий</label><input class="inp" id="al_c"><div class="row" style="margin-top:16px"><button class="bpri" onclick="sAlch()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
+function oAddClothSmart(){openMod('<div class="mtitle">Одежда</div><label class="fl">Название</label><input class="inp" id="cl_n" placeholder="напр. Плащ странника"><label class="fl">Свойство</label><input class="inp" id="cl_p"><label class="fl">Комментарий</label><input class="inp" id="cl_c"><div class="row" style="margin-top:16px"><button class="bpri" onclick="sCloth()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
+function sCloth(){var n=document.getElementById("cl_n").value.trim();if(!n)return;if(!S.clothing)S.clothing=[];var item={id:Date.now(),name:n,property:document.getElementById("cl_p").value,comment:document.getElementById("cl_c").value,qty:1,equipped:false};S.clothing.push(item);closeMod();ntf("Одежда добавлена");render();}
+function _alchDbSearch(q){
+  if(!q)return S.alchDB.slice(0,20);
+  var ql=q.toLowerCase();
+  return S.alchDB.filter(function(x){return x.name.toLowerCase().includes(ql)||(x.attribute||'').toLowerCase().includes(ql);}).slice(0,20);
+}
+function _renderAlchDbList(q){
+  var el=document.getElementById('alch_db_list');if(!el)return;
+  var items=_alchDbSearch(q);
+  if(!items.length){el.innerHTML='<div style="color:#7a6a52;font-size:.75rem;padding:4px">Нет совпадений</div>';return;}
+  el.innerHTML=items.map(function(it){
+    var safeName=it.name.replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    var safeAttr=(it.attribute||'').replace(/'/g,"\\'").replace(/"/g,'&quot;');
+    var onclick="document.getElementById('al_n').value='"+safeName+"';document.getElementById('al_l').value="+it.level+";document.getElementById('al_a').value='"+safeAttr+"'";
+    return '<div style="cursor:pointer;padding:5px 8px;border:1px solid var(--border);border-radius:4px;font-size:.72rem;margin-bottom:4px;background:var(--bg-deep)" onclick="'+onclick+'">'+it.name+' ['+it.level+', '+(it.attribute||'—')+']</div>';
+  }).join('');
+}
+function oAddAlch(){
+  var hasDB=S.alchDB&&S.alchDB.length>0;
+  var dbSection=hasDB
+    ?'<label class="fl">Поиск в базе алхимии</label>'
+     +'<input class="inp" id="alch_db_search" placeholder="Фильтр..." oninput="_renderAlchDbList(this.value)">'
+     +'<div id="alch_db_list" style="max-height:130px;overflow-y:auto;margin-bottom:10px;margin-top:4px"></div>'
+    :'';
+  openMod('<div class="mtitle">Алхимический предмет</div>'
+    +dbSection
+    +'<label class="fl">Название</label><input class="inp" id="al_n">'
+    +'<label class="fl">Уровень</label><input class="inp" type="number" id="al_l" value="1">'
+    +'<label class="fl">Атрибут</label><input class="inp" id="al_a" placeholder="напр. Огонь">'
+    +'<label class="fl">Свойство</label><input class="inp" id="al_p">'
+    +'<label class="fl">Комментарий</label><input class="inp" id="al_c">'
+    +'<div class="row" style="margin-top:16px"><button class="bpri" onclick="sAlch()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');
+  if(hasDB)_renderAlchDbList('');
+}
 function sAlch(){var n=document.getElementById("al_n").value.trim();if(!n)return;S.alchItems.push({id:Date.now(),name:n,level:+document.getElementById("al_l").value||1,attribute:document.getElementById("al_a").value,property:document.getElementById("al_p").value,comment:document.getElementById("al_c").value,qty:1});closeMod();ntf("Предмет добавлен");render();}
 
 // ── QUEST MODALS ──────────────────────────────────────────────────────────────
@@ -1929,8 +2147,8 @@ function deleteTask(qid,tid){
 
 // ── NPC MODALS ────────────────────────────────────────────────────────────────
 
-function oAddNPC(){openMod('<div class="mtitle">Новый НПС</div><label class="fl">Имя</label><input class="inp" id="npc_n"><label class="fl">Заметки</label><textarea class="inp" id="npc_d"></textarea><div class="row" style="margin-top:16px"><button class="bpri" onclick="sNPC()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
-function sNPC(){var n=document.getElementById("npc_n").value.trim();if(!n)return;S.npcs.push({id:Date.now(),name:n,notes:document.getElementById("npc_d").value});closeMod();ntf("НПС добавлен");render();}
-function oEditNPC(id){var n=S.npcs.find(function(x){return x.id===id;});openMod('<div class="mtitle">Редактировать НПС</div><label class="fl">Имя</label><input class="inp" id="en_n" value="'+n.name+'"><label class="fl">Заметки</label><textarea class="inp" id="en_d">'+n.notes+'</textarea><div class="row" style="margin-top:16px"><button class="bpri" onclick="sEditNPC('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div><div style="margin-top:10px;padding-top:10px;border-top:1px solid #1a1510"><button class="bdng" style="width:100%" onclick="oDelNPC('+id+')">Удалить персонажа</button></div>');}
-function sEditNPC(id){S.npcs=S.npcs.map(function(x){return x.id===id?Object.assign({},x,{name:document.getElementById("en_n").value,notes:document.getElementById("en_d").value}):x;});closeMod();ntf("НПС обновлён");render();}
-function oDelNPC(id){var n=S.npcs.find(function(x){return x.id===id;});openMod('<div class="mtitle">Удалить персонажа?</div><div style="font-size:.82rem;color:#e8dcc8;margin-bottom:16px">«'+n.name+'» будет удалён без возможности восстановления.</div><div class="row"><button class="bdng" style="flex:1" onclick="S.npcs=S.npcs.filter(function(x){return x.id!=='+id+';});closeMod();ntf(\'Удалено\',\'#e05050\');render()">Удалить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
+function oAddNPC(){openMod('<div class="mtitle">Новый НПС</div><label class="fl">Имя</label><input class="inp" id="npc_n"><label class="fl">Локация</label><input class="inp" id="npc_loc" placeholder="напр. Рыночная площадь"><label class="fl">Заметки</label><textarea class="inp" id="npc_d"></textarea><label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer;font-size:.78rem;color:var(--text-dim)"><input type="checkbox" id="npc_alive" checked> Жив</label><div class="row" style="margin-top:16px"><button class="bpri" onclick="sNPC()">Добавить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
+function sNPC(){var n=document.getElementById("npc_n").value.trim();if(!n)return;var alive=document.getElementById("npc_alive");S.npcs.push({id:Date.now(),name:n,location:document.getElementById("npc_loc").value,notes:document.getElementById("npc_d").value,alive:alive?alive.checked:true});closeMod();ntf("НПС добавлен");render();}
+function oEditNPC(id){var n=S.npcs.find(function(x){return x.id===id;});if(!n)return;var alive=n.alive!==false;openMod('<div class="mtitle">Редактировать НПС</div><label class="fl">Имя</label><input class="inp" id="en_n" value="'+n.name+'"><label class="fl">Локация</label><input class="inp" id="en_loc" value="'+(n.location||'')+'" placeholder="напр. Рыночная площадь"><label class="fl">Заметки</label><textarea class="inp" id="en_d">'+(n.notes||'')+'</textarea><label style="display:flex;align-items:center;gap:8px;margin-top:8px;cursor:pointer;font-size:.78rem;color:var(--text-dim)"><input type="checkbox" id="en_alive"'+(alive?' checked':'')+'> Жив</label><div class="row" style="margin-top:16px"><button class="bpri" onclick="sEditNPC('+id+')">Сохранить</button><button class="btn" onclick="closeMod()">Отмена</button></div><div style="margin-top:10px;padding-top:10px;border-top:1px solid #1a1510"><button class="bdng" style="width:100%" onclick="oDelNPC('+id+')">Удалить персонажа</button></div>');}
+function sEditNPC(id){var alive=document.getElementById("en_alive");S.npcs=S.npcs.map(function(x){return x.id===id?Object.assign({},x,{name:document.getElementById("en_n").value,location:document.getElementById("en_loc").value,notes:document.getElementById("en_d").value,alive:alive?alive.checked:true}):x;});closeMod();ntf("НПС обновлён");render();}
+function oDelNPC(id){var n=S.npcs.find(function(x){return x.id===id;});if(!n)return;openMod('<div class="mtitle">Удалить персонажа?</div><div style="font-size:.82rem;color:#e8dcc8;margin-bottom:16px">«'+n.name+'» будет удалён без возможности восстановления.</div><div class="row"><button class="bdng" style="flex:1" onclick="S.npcs=S.npcs.filter(function(x){return x.id!=='+id+';});closeMod();ntf(\'Удалено\',\'#e05050\');render()">Удалить</button><button class="btn" onclick="closeMod()">Отмена</button></div>');}
