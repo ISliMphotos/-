@@ -557,6 +557,12 @@ let hcv="",gcv="";
 let notesOpen=false;
 let charSecState={prof:false,props:false,titles:false,ach:false,notes:false};
 
+// ── DRAG & DROP STATE ─────────────────────────────────────────────────────────
+
+var dragSrc=null; // {arr:'weapons', id:123}
+var dragOver=null;
+var _touchDragItem=null,_touchDragArr=null,_touchDragId=null;
+
 // ── DERIVED ───────────────────────────────────────────────────────────────────
 
 const skBonus=n=>S.skills.filter(s=>s.bonusTarget===n).reduce((a,s)=>a+(+s.bonusValue||0),0);
@@ -574,6 +580,40 @@ const openMod=h=>{document.getElementById("mbox").innerHTML=h;document.getElemen
 const tg=(t,c)=>`<span class="tg" style="color:${c};border-color:${c};background:${c}18">${t}</span>`;
 const eqBtn=(eq,fn)=>{const c=eq?"#27ae60":"#c9a84c",bg=eq?"#0d1f0d":"#1e1a12",bc=eq?"#27ae60":"#4a3a22";return`<button class="beq" style="color:${c};border-color:${bc};background:${bg}" onclick="${fn}">${eq?"Снять":"Надеть"}</button>`;};
 const setTab=t=>{tab=t;render();};
+
+// ── DRAG & DROP HELPERS ───────────────────────────────────────────────────────
+
+function reorderArr(arr,fromId,toId){
+  var fi=arr.findIndex(function(x){return x.id===fromId;});
+  var ti=arr.findIndex(function(x){return x.id===toId;});
+  if(fi<0||ti<0||fi===ti)return arr;
+  var copy=[...arr];
+  var item=copy.splice(fi,1)[0];
+  copy.splice(ti,0,item);
+  return copy;
+}
+
+function onTouchMove(e){
+  if(!_touchDragItem)return;
+  e.preventDefault();
+  var touch=e.touches[0];
+  var target=document.elementFromPoint(touch.clientX,touch.clientY);
+  if(target){
+    var card=target.closest('[data-drag-id]');
+    if(card){_touchDragArr=card.getAttribute('data-drag-arr');_touchDragId=+card.getAttribute('data-drag-id');}
+  }
+}
+
+function onTouchEnd(){
+  if(_touchDragItem&&_touchDragArr===_touchDragItem.arr&&_touchDragId&&_touchDragId!==_touchDragItem.id){
+    var arrKey=_touchDragItem.arr;
+    var arr=S[arrKey];
+    if(arr)S[arrKey]=reorderArr(arr,_touchDragItem.id,_touchDragId);
+    render();
+    scheduleSave();
+  }
+  _touchDragItem=null;_touchDragArr=null;_touchDragId=null;
+}
 
 // ── CALCULATORS ───────────────────────────────────────────────────────────────
 
@@ -940,7 +980,7 @@ function rProf(){
 
 function _skillCard(s,showFavBtn){
   const typeClr={passive:"tg-blue",active:"tg-red"};
-  return `<div class="skill-card" onclick="this.classList.toggle('expanded')">
+  return `<div class="skill-card" data-drag-arr="skills" data-drag-id="${s.id}" draggable="true" ondragstart="dragSrc={arr:'skills',id:${s.id}}" ondragover="event.preventDefault();dragOver={arr:'skills',id:${s.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='skills'&&dragOver){S.skills=reorderArr(S.skills,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'skills',id:${s.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()" onclick="this.classList.toggle('expanded')">
     <div class="skill-card-name">${s.favorite?'★ ':''}${s.name}</div>
     <div class="row" style="gap:4px;flex-wrap:wrap;margin-top:2px">
       <span class="tg ${typeClr[s.type]||'tg-dim'}" style="font-size:.48rem">${s.type==="passive"?"Пассивный":"Активный"}</span>
@@ -1054,7 +1094,7 @@ function rInv(){
   </div>
 </div>
 ${invCardSec("weapons","⚔ Оружие",S.weapons,
-    w=>w&&w.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card${w.equipped?' equipped':''}">
+    w=>w&&w.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0" data-drag-arr="weapons" data-drag-id="${w.id}" draggable="true" ondragstart="dragSrc={arr:'weapons',id:${w.id}}" ondragover="event.preventDefault();dragOver={arr:'weapons',id:${w.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='weapons'&&dragOver){S.weapons=reorderArr(S.weapons,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'weapons',id:${w.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()"></div>`:`<div class="item-card${w.equipped?' equipped':''}" data-drag-arr="weapons" data-drag-id="${w.id}" draggable="true" ondragstart="dragSrc={arr:'weapons',id:${w.id}}" ondragover="event.preventDefault();dragOver={arr:'weapons',id:${w.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='weapons'&&dragOver){S.weapons=reorderArr(S.weapons,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'weapons',id:${w.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()">
       <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
         <div class="item-card-name">${w.name||'—'}</div>
         ${(w.categories&&w.categories.length)?`<div style="display:flex;flex-wrap:wrap;gap:3px;margin-top:3px">${w.categories.map(c=>`<span style="font-size:.55rem;border:1px solid var(--gold-dark);color:var(--gold-dim);border-radius:3px;padding:1px 5px">${c}</span>`).join('')}</div>`:''}
@@ -1077,7 +1117,7 @@ ${invCardSec("weapons","⚔ Оружие",S.weapons,
     "oAddWpSmart()"
   )}
 ${invCardSec("armors","🛡 Доспехи",S.armors,
-    a=>a&&a.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card${a.equipped?' equipped':''}">
+    a=>a&&a.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0" data-drag-arr="armors" data-drag-id="${a.id}" draggable="true" ondragstart="dragSrc={arr:'armors',id:${a.id}}" ondragover="event.preventDefault();dragOver={arr:'armors',id:${a.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='armors'&&dragOver){S.armors=reorderArr(S.armors,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'armors',id:${a.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()"></div>`:`<div class="item-card${a.equipped?' equipped':''}" data-drag-arr="armors" data-drag-id="${a.id}" draggable="true" ondragstart="dragSrc={arr:'armors',id:${a.id}}" ondragover="event.preventDefault();dragOver={arr:'armors',id:${a.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='armors'&&dragOver){S.armors=reorderArr(S.armors,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'armors',id:${a.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()">
       <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
         <div class="item-card-name">${a.name||'—'}</div>
         ${a.armorValue?`<div class="item-prop" style="font-size:.65rem;color:var(--blue)">+${a.armorValue} броня</div>`:''}
@@ -1094,7 +1134,7 @@ ${invCardSec("armors","🛡 Доспехи",S.armors,
     "oAddArSmart()"
   )}
 ${invCardSec("accessories","💍 Аксессуары",S.accessories,
-    a=>a&&a.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card${a.equipped?' equipped':''}">
+    a=>a&&a.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0" data-drag-arr="accessories" data-drag-id="${a.id}" draggable="true" ondragstart="dragSrc={arr:'accessories',id:${a.id}}" ondragover="event.preventDefault();dragOver={arr:'accessories',id:${a.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='accessories'&&dragOver){S.accessories=reorderArr(S.accessories,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'accessories',id:${a.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()"></div>`:`<div class="item-card${a.equipped?' equipped':''}" data-drag-arr="accessories" data-drag-id="${a.id}" draggable="true" ondragstart="dragSrc={arr:'accessories',id:${a.id}}" ondragover="event.preventDefault();dragOver={arr:'accessories',id:${a.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='accessories'&&dragOver){S.accessories=reorderArr(S.accessories,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'accessories',id:${a.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()">
       <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
         <div class="item-card-name">${a.name||'—'}</div>
         ${a.bonusTarget?`<div class="item-prop" style="font-size:.65rem;color:var(--green)">${a.bonusTarget}: +${a.bonusValue||0}</div>`:''}
@@ -1111,7 +1151,7 @@ ${invCardSec("accessories","💍 Аксессуары",S.accessories,
     "oAddAcSmart()"
   )}
 ${invCardSec("clothing","👗 Одежда",(S.clothing||[]),
-    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card${it.equipped?' equipped':''}">
+    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0" data-drag-arr="clothing" data-drag-id="${it.id}" draggable="true" ondragstart="dragSrc={arr:'clothing',id:${it.id}}" ondragover="event.preventDefault();dragOver={arr:'clothing',id:${it.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='clothing'&&dragOver){S.clothing=reorderArr(S.clothing,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'clothing',id:${it.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()"></div>`:`<div class="item-card${it.equipped?' equipped':''}" data-drag-arr="clothing" data-drag-id="${it.id}" draggable="true" ondragstart="dragSrc={arr:'clothing',id:${it.id}}" ondragover="event.preventDefault();dragOver={arr:'clothing',id:${it.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='clothing'&&dragOver){S.clothing=reorderArr(S.clothing,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'clothing',id:${it.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()">
       <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
         <div class="item-card-name">${it.name||'—'}</div>
       </div>
@@ -1132,7 +1172,7 @@ ${invCardSec("clothing","👗 Одежда",(S.clothing||[]),
     "oAddClothSmart()"
   )}
 ${invCardSec("alch","⚗ Алхимические",S.alchItems,
-    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card">
+    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0" data-drag-arr="alchItems" data-drag-id="${it.id}" draggable="true" ondragstart="dragSrc={arr:'alchItems',id:${it.id}}" ondragover="event.preventDefault();dragOver={arr:'alchItems',id:${it.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='alchItems'&&dragOver){S.alchItems=reorderArr(S.alchItems,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'alchItems',id:${it.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()"></div>`:`<div class="item-card" data-drag-arr="alchItems" data-drag-id="${it.id}" draggable="true" ondragstart="dragSrc={arr:'alchItems',id:${it.id}}" ondragover="event.preventDefault();dragOver={arr:'alchItems',id:${it.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='alchItems'&&dragOver){S.alchItems=reorderArr(S.alchItems,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'alchItems',id:${it.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()">
       <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
         <div class="item-card-name">${it.name||'—'}</div>
         ${it.attribute?`<div class="item-prop" style="font-size:.65rem">${it.level||1} · ${it.attribute}</div>`:''}
@@ -1153,7 +1193,7 @@ ${invCardSec("alch","⚗ Алхимические",S.alchItems,
     "oAddAlch()"
   )}
 ${invCardSec("potions","🧪 Зелья",S.potions,
-    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card">
+    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0" data-drag-arr="potions" data-drag-id="${it.id}" draggable="true" ondragstart="dragSrc={arr:'potions',id:${it.id}}" ondragover="event.preventDefault();dragOver={arr:'potions',id:${it.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='potions'&&dragOver){S.potions=reorderArr(S.potions,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'potions',id:${it.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()"></div>`:`<div class="item-card" data-drag-arr="potions" data-drag-id="${it.id}" draggable="true" ondragstart="dragSrc={arr:'potions',id:${it.id}}" ondragover="event.preventDefault();dragOver={arr:'potions',id:${it.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='potions'&&dragOver){S.potions=reorderArr(S.potions,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'potions',id:${it.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()">
       <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
         <div class="item-card-name">${it.name||'—'}</div>
       </div>
@@ -1173,7 +1213,7 @@ ${invCardSec("potions","🧪 Зелья",S.potions,
     "oAddPotSmart()"
   )}
 ${invCardSec("misc","📦 Остальное",S.misc,
-    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0"></div>`:`<div class="item-card">
+    it=>it&&it.type==='separator'?`<div style="grid-column:1/-1;height:1px;background:var(--border);margin:6px 0" data-drag-arr="misc" data-drag-id="${it.id}" draggable="true" ondragstart="dragSrc={arr:'misc',id:${it.id}}" ondragover="event.preventDefault();dragOver={arr:'misc',id:${it.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='misc'&&dragOver){S.misc=reorderArr(S.misc,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'misc',id:${it.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()"></div>`:`<div class="item-card" data-drag-arr="misc" data-drag-id="${it.id}" draggable="true" ondragstart="dragSrc={arr:'misc',id:${it.id}}" ondragover="event.preventDefault();dragOver={arr:'misc',id:${it.id}}" ondrop="event.preventDefault();if(dragSrc&&dragSrc.arr==='misc'&&dragOver){S.misc=reorderArr(S.misc,dragSrc.id,dragOver.id);scheduleSave();}dragSrc=null;dragOver=null;render()" ontouchstart="_touchDragItem={arr:'misc',id:${it.id}}" ontouchmove="onTouchMove(event)" ontouchend="onTouchEnd()">
       <div onclick="var h=this.nextElementSibling;h.style.display=h.style.display==='block'?'none':'block'">
         <div class="item-card-name">${it.name||'—'}</div>
       </div>
