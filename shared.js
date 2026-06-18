@@ -1049,11 +1049,12 @@ function rSkills(){
     const open=skillGrpOpen[src];
     const group=S.skills.filter(s=>s.source===src);
     const realCount=group.filter(s=>s.type!=='separator').length;
-    return `<div class="grp-title" style="cursor:pointer" onclick="skillGrpOpen['${src}']=!skillGrpOpen['${src}'];render()">${src} · ${realCount} навык${realCount===1?'':'ов'}<span style="float:right;font-size:.6rem">${open?'▲':'▼'}</span></div>
+    const srcSafe=src.replace(/\\/g,'\\\\').replace(/'/g,"\\'");
+    return `<div class="grp-title" style="cursor:pointer" onclick="skillGrpOpen['${srcSafe}']=!skillGrpOpen['${srcSafe}'];render()">${src} · ${realCount} навык${realCount===1?'':'ов'}<span style="float:right;font-size:.6rem">${open?'▲':'▼'}</span></div>
     ${open?`<div class="skills-grid" style="margin-bottom:12px">
       ${group.map(s=>s.type==='separator'?'<div style="grid-column:1/-1;height:1px;background:var(--border);margin:4px 0"></div>':_skillCard(s,true)).join("")}
-      <div class="skill-card grid-add" style="min-height:80px" onclick="oAddSk('${src}')">+</div>
-      <div class="skill-card grid-add" style="min-height:40px;font-size:.7rem;opacity:.5" onclick="S.skills.push({id:Date.now(),type:'separator',source:'${src}'});render()">—</div>
+      <div class="skill-card grid-add" style="min-height:80px" onclick="oAddSk('${srcSafe}')">+</div>
+      <div class="skill-card grid-add" style="min-height:40px;font-size:.7rem;opacity:.5" onclick="S.skills.push({id:Date.now(),type:'separator',source:'${srcSafe}'});render()">—</div>
     </div>`:''}`;
   }).join("");
 
@@ -1549,12 +1550,14 @@ function rAlch(){
     if(!arr.length)return '<div style="color:var(--text-dim);font-size:.78rem;padding:8px;text-align:center;font-style:italic">Нет рецептов</div>';
     return arr.map((r,i)=>{
       const prod=alchFind(r.resultId);
-      const canMake=r.reagentIds.every(rid=>{const e=S.alchInventory.find(x=>x.dbId===rid);return e&&e.qty>0;});
+      const _needed={};for(const rid of r.reagentIds)_needed[rid]=(_needed[rid]||0)+1;
+      const canMake=Object.entries(_needed).every(([rid,n])=>{const e=S.alchInventory.find(x=>x.dbId===rid);return e&&e.qty>=n;});
       const reagHtml=r.reagentIds.map(rid=>{
         const it=alchFind(rid);
         const inv=S.alchInventory.find(x=>x.dbId===rid);
         const qty=inv?inv.qty:0;
-        return '<div class="alch-recipe-ing">'+(it?'<span class="tg tg-dim" style="font-size:.42rem;padding:1px 5px">'+it.level+'</span>'+it.name+' <span style="color:'+(qty>0?"#27ae60":"#e05050")+'">×'+qty+'</span>':'?')+'</div>';
+        const needN=_needed[rid]||1;
+        return '<div class="alch-recipe-ing">'+(it?'<span class="tg tg-dim" style="font-size:.42rem;padding:1px 5px">'+it.level+'</span>'+it.name+' <span style="color:'+(qty>=needN?"#27ae60":"#e05050")+'">'+qty+'/'+needN+'</span>':'?')+'</div>';
       }).join('');
       return '<div class="alch-recipe-card" style="'+(canMake?'border-color:#27ae60;box-shadow:0 0 0 1px #27ae60':'')+'" onclick="alchCreate('+i+','+arrName+')">'
         +'<button class="alch-recipe-del" onclick="event.stopPropagation();'+arrName+'.splice('+i+',1);render()">✕</button>'
