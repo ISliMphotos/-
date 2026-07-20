@@ -1,0 +1,16 @@
+name: Keepalive — ping Supabase daily
+
+on:
+  schedule:
+    - cron: '0 3 * * *'  # ежедневно в 03:00 UTC (06:00 МСК)
+  workflow_dispatch:       # ручной запуск для проверки
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Ping keepalive endpoint
+        run: |
+          echo "Pinging backend..."
+          curl -sf --max-time 60 https://dnd-sheet-backend-bejb.onrender.com/api/keepalive || exit 1
+          echo "Done"

@@ -65,6 +65,14 @@ function verifyTelegramInitData(initData) {
 // Health check — Render.com пингует этот endpoint чтобы не усыплять сервис
 app.get('/health', (_req, res) => res.json({ ok: true }));
 
+app.get('/api/keepalive', async (_req, res) => {
+  const { count, error } = await supabase
+    .from('characters')
+    .select('id', { count: 'exact', head: true });
+  if (error) return res.status(500).json({ ok: false, error: error.message });
+  res.json({ ok: true, rows: count, ts: new Date().toISOString() });
+});
+
 /**
  * POST /api/auth/verify
  * Тело: { initData: string }  — сырая строка Telegram.WebApp.initData
